@@ -3,6 +3,17 @@
 ## Repository snapshot
 This repository is currently a workflow scaffold for a future Chrome Manifest V3 extension. The main sources of truth are `plan.md` and the `AGENTIC_WORKFLOW/` templates until the real `AGENTS/` and `.github/` workflow files are materialized.
 
+## Second Brain Memory
+- Before answering, planning, or editing, read:
+  - `.github/agent_memory/00_index.md`
+  - `.github/agent_memory/01_decisions.md`
+  - `.github/agent_memory/02_learnings.md`
+  - `.github/agent_memory/03_actions.md`
+- Treat those files as the repo-local memory graph.
+- After any complex bug fix, feature, or structural choice, append a concise entry to the relevant memory file(s) before concluding.
+- Cross-link memory entries with relative markdown links so decisions, learnings, and actions stay navigable.
+- Keep `AGENTIC_WORKFLOW/.github_templates/agent_memory/` aligned with the live repo memory layout.
+
 ## Build, test, and lint
 - No repo-specific build, test, or lint commands are defined yet.
 - No package manifest or test runner is present in the current repository snapshot.

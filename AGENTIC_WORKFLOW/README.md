@@ -10,14 +10,16 @@ Instead of prompting an AI randomly, this setup ensures that tasks are executed 
 
 - `AGENTS_templates/`: Boilerplate files used to track progress (`ACTIVE_PHASE.md`, `PROGRESS_DASHBOARD.md`) and boilerplate phase folders (`PHASE_TEMPLATE/`).
 - `.github_templates/`: Contains strict global AI instructions (`copilot-instructions.md`) and custom agent definitions (e.g., `agents-orchestrator.agent.md`).
+- `.github_templates/agent_memory/`: Persistent second-brain ledger files for decisions, learnings, and actions; copy these into `.github/agent_memory/`.
 - `PRD_TEMPLATE.md`: A structured Product Requirements Document template to define initial requirements before diving into development.
 
 ## Setup Instructions for a New Project
 
 1. **Copy Global Instructions**: 
-   Copy the contents of `AGENTIC_WORKFLOW/.github_templates/` to your actual `.github/` repository folder.
-   - The `.github/copilot-instructions.md` acts as the law for your AI.
-   - The `.github/agents/*.agent.md` defines custom personas.
+    Copy the contents of `AGENTIC_WORKFLOW/.github_templates/` to your actual `.github/` repository folder.
+    - The `.github/copilot-instructions.md` acts as the law for your AI.
+    - The `.github/agents/*.agent.md` defines custom personas.
+    - Copy `.github_templates/agent_memory/` to `.github/agent_memory/` so the second-brain ledger is initialized too.
 
 2. **Initialize Agent Folders**:
    Rename or copy `AGENTIC_WORKFLOW/AGENTS_templates/` to the root folder `AGENTS/`.
@@ -30,7 +32,7 @@ Instead of prompting an AI randomly, this setup ensures that tasks are executed 
    - Edit `CHECKLIST.md` to break the task down into exact roles/agents.
 
 4. **Product Requirements**:
-   Write your PRD using the `PRD_TEMPLATE.md` to feed concrete data into your newly established AI team.
+    Write your PRD using the `PRD_TEMPLATE.md` to feed concrete data into your newly established AI team.
 
 ## Mandatory Rules (The "Agentic Law")
 

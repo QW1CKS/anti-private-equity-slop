@@ -6,12 +6,12 @@
 - Status: in_progress
 
 ## Current Agent Ownership
-- Current Agent: .github/agents/agents-orchestrator.agent.md
-- Next Agent: .github/agents/software-architect.agent.md
+- Current Agent: .github/agents/software-architect.agent.md
+- Next Agent: .github/agents/security-engineer.agent.md
 
 ## Agent Sequence For Current Phase
-1. .github/agents/agents-orchestrator.agent.md 🔄 IN PROGRESS
-2. .github/agents/software-architect.agent.md ⏳ PENDING
+1. .github/agents/agents-orchestrator.agent.md ✅ COMPLETE
+2. .github/agents/software-architect.agent.md 🔄 IN PROGRESS
 3. .github/agents/security-engineer.agent.md ⏳ PENDING
 4. .github/agents/reality-checker.agent.md ⏳ PENDING
 
@@ -19,7 +19,7 @@
 - Bootstrap the workflow scaffold and document the extension's local-only foundation.
 
 ## Last Completed Item
-- Copied the workflow templates into `AGENTS/` and `.github/agents/`, then initialized the active phase.
+- Recorded the Phase 1 checkpoint map and evidence requirements, then handed ownership to the software architect.
 
 ## Blockers
 - None active

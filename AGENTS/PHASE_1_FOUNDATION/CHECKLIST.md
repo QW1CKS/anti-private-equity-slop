@@ -15,15 +15,22 @@ Bootstrap the workflow scaffold and document the extension foundation so feature
 ### Actions
 - [x] Open the phase with explicit scope and ownership.
 - [x] Set the active phase state and agent order.
-- [ ] Record phase exit criteria and evidence requirements.
+- [x] Record phase exit criteria and evidence requirements.
 
 ### Outputs
 - [x] Workflow scaffold is present in `AGENTS/` and `.github/agents/`.
-- [ ] Signed-off checkpoint map for the phase.
+- [x] Signed-off checkpoint map for the phase.
+
+### Checkpoint Map
+| Checkpoint | Owner | Evidence Required |
+|---|---|---|
+| Phase state coherence | `.github/agents/agents-orchestrator.agent.md` | `AGENTS/ACTIVE_PHASE.md` and `AGENTS/PROGRESS_DASHBOARD.md` agree on the active phase, owner, and blocker status. |
+| Foundation boundary docs | `.github/agents/software-architect.agent.md` and `.github/agents/security-engineer.agent.md` | Phase folder notes capture the MV3 boundary, local-only matching flow, minimal permissions, and fail-closed identity rules from `plan.md`. |
+| Exit certification | `.github/agents/reality-checker.agent.md` | Checklist evidence includes files changed, validation run, observed outcome, and any residual risk note. |
 
 ### Exit Checks
 - [x] Phase state points at the correct current and next agents.
-- [ ] Handoff evidence is ready for the architect.
+- [x] Handoff evidence is ready for the architect.
 
 ---
 

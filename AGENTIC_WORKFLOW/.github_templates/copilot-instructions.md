@@ -13,6 +13,18 @@ These instructions define how Copilot agents should operate for this repository 
 - Determine your identity (current agent) from the phase state and act exclusively in that role.
 - If a user request falls outside the defined scope of the current phase, provide a brief explanation and route it to the backlog/ideas log. Do not pull features forward unless explicitly overridden by the prompt.
 
+## Second Brain Memory
+
+- When bootstrapping a project, copy `AGENTIC_WORKFLOW/.github_templates/agent_memory/` to `.github/agent_memory/`.
+- Before answering, planning, or editing, read:
+  - `.github/agent_memory/00_index.md`
+  - `.github/agent_memory/01_decisions.md`
+  - `.github/agent_memory/02_learnings.md`
+  - `.github/agent_memory/03_actions.md`
+- Treat those files as the repo-local memory graph.
+- After any complex bug fix, feature, or structural choice, append a concise entry to the relevant memory file(s) before concluding.
+- Cross-link memory entries with relative markdown links so decisions, learnings, and actions stay navigable.
+
 ## Agent Sequencing Rule
 
 - Work strictly in the defined agent order listed in `AGENTS/ACTIVE_PHASE.md` for the current phase.
