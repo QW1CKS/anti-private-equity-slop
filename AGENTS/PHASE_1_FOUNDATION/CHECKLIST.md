@@ -16,10 +16,12 @@ Bootstrap the workflow scaffold and document the extension foundation so feature
 - [x] Open the phase with explicit scope and ownership.
 - [x] Set the active phase state and agent order.
 - [x] Record phase exit criteria and evidence requirements.
+  Evidence: checkpoint map below captures the owners and required artifacts for each phase checkpoint.
 
 ### Outputs
 - [x] Workflow scaffold is present in `AGENTS/` and `.github/agents/`.
 - [x] Signed-off checkpoint map for the phase.
+  Evidence: phase checkpoint table below names the owner and proof needed for each exit criterion.
 
 ### Checkpoint Map
 | Checkpoint | Owner | Evidence Required |
@@ -30,7 +32,9 @@ Bootstrap the workflow scaffold and document the extension foundation so feature
 
 ### Exit Checks
 - [x] Phase state points at the correct current and next agents.
+  Evidence: `AGENTS/ACTIVE_PHASE.md` now hands off from `agents-orchestrator` to `software-architect`.
 - [x] Handoff evidence is ready for the architect.
+  Evidence: `AGENTS/ACTIVE_PHASE.md` and `AGENTS/PROGRESS_DASHBOARD.md` are aligned on `software-architect` as the current owner.
 
 ---
 
