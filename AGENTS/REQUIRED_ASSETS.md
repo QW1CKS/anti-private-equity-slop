@@ -1,44 +1,65 @@
-# Required Custom Assets for YouTube Private Equity Warning Extension
+# Required Assets for YouTube Private Equity Warning Extension
 
-This file defines the required asset categories for the project based on the PRD and repository profile.
+This file defines the required asset categories for the project based on PRD analysis and tech stack requirements.
 
-## Project Metadata
-- **Repo Profile:** extension | frontend
-- **Primary Language:** typescript
-- **Risk Posture:** strict (privacy-first)
-- **Capability Priorities:** security, testing, chrome-extension patterns
+## How To Use This File
+
+The Asset Curator agent in Phase 3 will use this file to select appropriate agents, hooks, workflows, and skills from awesome-copilot.
 
 ## Curation Inputs
-- **Repo Type:** Chrome Extension (Manifest V3)
-- **Tech Stack:** TypeScript, Vitest, Playwright, Zod
-- **Special Needs:** Privacy preservation, local-only matching, accessibility
+- **Repo Profile:** frontend
+- **Risk Posture:** strict (privacy-first, security-critical extension)
+- **Capability Priorities:** security, testing, privacy, chrome-extension
+- **Tech Stack:** TypeScript, Chrome MV3, Vitest, Playwright
+- **Generated At:** 2026-04-16T00:00:00Z
 
-## Required Asset Categories
+## Required Agent Categories
 
-### Required Agents
-- **Workflow Orchestrator** - Always needed for phase management
-- **Reality Checker** - Always needed for architecture review
-- **Chrome Extension Specialist** - Based on MV3 extension profile
-- **TypeScript Developer** - Based on primary language
-- **Testing Specialist** - Vitest/Playwright testing required
+### Workflow Orchestration
+- `.github/agents/agents-orchestrator.agent.md` — Always required for phase coordination
 
-### Required Hooks
-- Pre-commit hooks (lint, format, type-check)
-- CI validation hooks
+### Core Agents
+- Workflow Orchestrator (agents-orchestrator)
+- Critical Thinking (critical-thinking)
+- API Architect (for blacklist service design)
+- Chrome Extension Specialist
+- TypeScript/MCP Expert
+- Playwright Tester (for integration testing)
+- GitHub Actions Expert (for CI/CD)
 
-### Required Instructions
-- Code review guidelines specific to Chrome extensions
-- Testing standards for extension integration tests
+### Reasoning for Selection
+- **privacy-first architecture** — All matching must be local, no data leakage
+- **Chrome MV3** — Service worker background, manifest V3
+- **TypeScript** — Type safety required for extension reliability
+- **testing** — Vitest + Playwright for unit and integration tests
 
-### Required Workflows
-- CI/CD workflow for extension builds
-- Code quality workflow (lint, type-check, test)
+## Required Hook Categories
 
-### Required Skills
-- Chrome Extension development patterns
-- TypeScript best practices
-- Manifest V3 security guidelines
+- Pre-commit hooks for linting and formatting
+- CI validation hooks for PR checks
+
+## Required Workflow Categories
+
+- CI/CD workflow for build/test/lint
+- Code quality workflow
+
+## Required Skills Categories
+
+- TypeScript development
+- Chrome Extension APIs
+- Security/privacy best practices
+
+## Required Instructions Categories
+
+- Code review guidelines
+- Testing standards
+- Security guidelines for extensions
+
+## Excluded (Not Needed)
+- Backend agents (no server-side code in this project)
+- Mobile development agents
+- Database agents (using Chrome storage only)
+- Payment/analytics agents (privacy-first, no tracking)
 
 ---
-
-**Note:** This is a general category list. The Asset Curator in Phase 3 will match these to specific files from awesome-copilot.
+*This file is used by the Asset Curator agent in Phase 3 to select appropriate assets from awesome-copilot*
