@@ -12,32 +12,35 @@
 - Phase checklist template: [./CHECKLIST.md](./CHECKLIST.md)
 
 ## Goal
-Set up the extension scaffold with MV3 manifest, minimal permission configuration, YouTube detection infrastructure, and blacklist sync base.
+Set up the foundational architecture for the Chrome MV3 extension including manifest configuration, service worker skeleton, and basic project structure with tooling.
 
 ## Technical & Design Focus
-- Chrome Manifest V3 extension architecture
-- Minimal permission set (storage, alarms, YouTube host, API host only)
-- Service worker background with message routing
-- YouTube SPA detection infrastructure
-- Basic blacklist storage and sync foundation
+- Manifest V3 configuration with minimal permission set
+- Service worker as background handler
+- TypeScript project setup with build tooling
+- Basic YouTube URL matching for page detection
+- Project folder structure for content scripts, background, and shared code
 
 ## Agents In This Phase
-- `.github/agents/agents-orchestrator.agent.md`
-- `.github/agents/critical-thinking.agent.md`
+- `.github/agents/gem-orchestrator.agent.md` - Workflow orchestration and phase coordination
+- `.github/agents/critical-thinking.agent.md` - Architecture and design decision analysis
+- `.github/agents/typescript-mcp-expert.agent.md` - TypeScript project setup and type safety implementation
+- `.github/agents/github-actions-expert.agent.md` - CI/CD workflow setup for build/test/lint
 
 ## Exit Criteria
-- [ ] Extension manifest.json with MV3 and minimal permissions configured
-- [ ] Service worker background with message router scaffolded
-- [ ] YouTube page detection infrastructure in place
-- [ ] Blacklist storage layer with sync base implemented
-- [ ] Security floor enforced (no tabs, webRequest, notifications, or scripting in Phase 1)
+- [ ] Manifest V3 configured with minimal permissions (storage, alarms, YouTube host permissions)
+- [ ] Service worker skeleton created and loads in Chrome
+- [ ] TypeScript project compiles without errors
+- [ ] Basic content script loads on YouTube watch/shorts/live pages
+- [ ] Project folder structure follows planned architecture
 
 ## Required Artifacts
-- `manifest.json` — MV3 manifest with minimal permissions
-- `src/background/service-worker.ts` — Service worker entry point
-- `src/background/message-router.ts` — Message routing between content and background
-- `src/content/youtube-detector.ts` — YouTube page detection
-- `src/background/blacklist-sync.ts` — Blacklist sync infrastructure
+- `manifest.json` — MV3 manifest with permissions and content script registration
+- `src/background/service-worker.ts` — Background service worker entry point
+- `src/content/youtube-detector.ts` — Basic YouTube page URL detection
+- `tsconfig.json` — TypeScript configuration
+- `package.json` — Project dependencies and scripts
+- `vite.config.ts` — Build configuration for extension bundling
 
 ## Validation Commands
 - Build: `npm run build`

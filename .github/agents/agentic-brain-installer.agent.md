@@ -62,39 +62,122 @@ Your job is to set up the infrastructure only:
 
 ---
 
-## Phase 1: Project Info (Documentation Only)
+## 🚨 MANDATORY ERROR CHECK FRAMEWORK
+
+**AFTER EVERY OPERATION, YOU MUST:**
+1. Verify the operation completed successfully
+2. Check for inconsistencies or missing files
+3. **TELL THE USER** if something is wrong
+
+**Error Check Pattern:**
+```powershell
+# After each operation, run verification
+ls <expected path>
+
+# If missing, IMMEDIATELY report:
+⚠️ ERROR: <what was expected> not found
+- Expected: <path>
+- Action: <how to fix>
+```
+
+**NEVER assume an operation succeeded — always verify.**
+
+---
+
+## Phase 1: Project Info (Documentation Only) — **WITH ERROR CHECKS**
 
 1.1 **Ask user for their project idea** - What do they want to build?
+
 1.2 Write `PRD.md` - this is DOCUMENTATION only (fill in the template)
+   - **ERROR CHECK:** Verify PRD.md exists: `ls PRD.md`
+   - **ERROR CHECK:** Verify it's not empty (size > 0 bytes)
+
 1.3 Copy this installer agent to `.github/agents/agentic-brain-installer.agent.md`
+   - **ERROR CHECK:** Verify file exists: `ls .github/agents/agentic-brain-installer.agent.md`
+   - **ERROR CHECK:** Verify NOT placeholder: Read first 5 lines, ensure no "IMPORTANT:" error
+
+**Phase 1 Exit Verification:**
+- [ ] PRD.md exists and has content
+- [ ] Installer agent copied to .github/agents/
+- [ ] If ANY check fails → REPORT TO USER
 
 **Output:** Just a filled-in PRD.md file. No code, no agent selection.
 
 ---
 
-## Phase 2: Phase Structure (Documentation Only)
+## Phase 2: Phase Structure (Documentation Only) — **CREATE ALL PHASES WITH ERROR CHECKS**
 
 2.1 Detect repo type from existing files (frontend/backend/etc.)
-2.2 Create phase folders in `AGENTS/` with basic README
+   - **ERROR CHECK:** List existing files to confirm repo type detected
+
+2.2 **CREATE ALL PHASE FOLDERS** (Phase 1 through Phase 5, or however many defined in PRD)
+   - **ERROR CHECK:** After creating each folder, verify it exists
+   - **ERROR CHECK:** After copying README.md, verify file exists in each phase folder
+   - **ERROR CHECK:** After copying CHECKLIST.md, verify file exists in each phase folder
+
 2.3 Update `AGENTS/ACTIVE_PHASE.md`
+   - **ERROR CHECK:** Verify file was updated: `cat AGENTS/ACTIVE_PHASE.md | Select-String "Current Phase"`
+
 2.4 Update `.github/agent_memory/00_index.md`
+   - **ERROR CHECK:** Verify file was updated: `cat .github/agent_memory/00_index.md | Select-String "Project Name"`
+
 2.5 Update `AGENTS/PROGRESS_DASHBOARD.md`
+   - **ERROR CHECK:** Verify file was updated: `cat AGENTS/PROGRESS_DASHBOARD.md | Select-String "Phase"`
+
+**🚨 CRITICAL: CREATE ALL PHASE FOLDERS UPFRONT — NOT PROGRESSIVELY**
+
+The installer MUST create ALL phase folders during Phase 2. Do NOT create them progressively.
+
+**Phase names from PRD (or default):**
+- Phase 1 - Foundation
+- Phase 2 - Core Implementation
+- Phase 3 - UI/Feature Development
+- Phase 4 - Testing & Polish
+- Phase 5 - Deployment & Launch
 
 **✅ PHASE 2 VERIFICATION - MANDATORY:**
-- [ ] Run `ls AGENTS/` to confirm phase folders exist
-- [ ] Run `ls AGENTS/<Phase Name>/` to confirm README.md and CHECKLIST.md exist
+- [ ] Run `ls AGENTS/` to confirm ALL phase folders exist
+- [ ] For EACH folder, run `ls AGENTS/<Phase Name>/` to confirm README.md AND CHECKLIST.md exist
+- [ ] **ERROR CHECK:** If ANY phase folder is missing → REPORT TO USER IMMEDIATELY
+- [ ] **ERROR CHECK:** If ANY README.md or CHECKLIST.md is missing → REPORT TO USER IMMEDIATELY
 - [ ] Verify CHECKLIST.md uses TEMPLATE structure (not custom implementation tasks)
 - [ ] Verify phase folder names use SPACES not URL-encoded (e.g., "Phase 1 - Foundation" NOT "Phase%201%20-%20Foundation")
 
-**Output:** Phase documentation files. No code.
+**⚠️ ERROR HANDLING — TELL USER IF SOMETHING IS MISSING:**
+If after creating phase folders, any are missing or incomplete, you MUST tell the user:
+```
+⚠️ ISSUE DETECTED: Phase folder "<Phase Name>" is missing or incomplete.
+- Missing: <what's missing>
+- Action required: <what needs to be done>
+```
+
+**Output:** ALL phase documentation files (not just first phase). No code.
 
 ---
 
-## Phase 3: Asset Curation (Handoff to Specialist Agent)
+## Phase 3: Asset Curation (Handoff to Specialist Agent) — **WITH ERROR CHECKS**
 
 3.1 Copy the Asset Curator agent to `.github/agents/agentic-brain-asset-curator.agent.md`
-3.2 Tell user to switch to "Agentic Brain Asset Curator" agent
-3.3 The Asset Curator will analyze PRD and select appropriate assets
+   - **ERROR CHECK:** Verify file exists: `ls .github/agents/agentic-brain-asset-curator.agent.md`
+
+3.2 Read first 5 lines to verify NOT placeholder
+   - **ERROR CHECK:** If contains "IMPORTANT:" → RE-COPY
+
+3.3 Verify file contains actual agent code (not error message)
+   - **ERROR CHECK:** If contains "This agent was not properly copied" → RE-COPY
+
+3.4 Tell user to switch to "Agentic Brain Asset Curator" agent
+
+3.5 The Asset Curator will analyze PRD and select appropriate assets
+   - **ERROR CHECK:** Verify REQUIRED_ASSETS.md exists: `ls AGENTS/REQUIRED_ASSETS.md`
+
+**Phase 3 Exit Verification:**
+- [ ] Asset Curator agent exists in .github/agents/
+- [ ] Agent file is NOT a placeholder
+- [ ] REQUIRED_ASSETS.md exists
+- [ ] If ANY check fails → REPORT TO USER
+
+**Output:** Handoff to Phase 3 agent. No asset copying by installer.
 
 **✅ PHASE 3 VERIFICATION - MANDATORY:**
 - [ ] Run `ls .github/agents/` to confirm agentic-brain-asset-curator.agent.md exists
@@ -190,12 +273,17 @@ Analyze the target repository to detect its profile:
 - Detect frontend (React, Vue, Angular), backend (Node, Python, Go), etc.
 - Determine if it's fullstack, data, infrastructure, etc.
 
+**ERROR CHECK:** Verify detection completed by listing detected files
+
 ### 2.2 Define Phase Structure
-Based on the PRD, define appropriate phases. Default structure:
+Based on the PRD, define appropriate phases. Default structure (CREATE ALL OF THESE):
 - **Phase 1 - Foundation:** Setup, architecture, core infrastructure
-- **Phase 2 - Implementation:** Feature development
-- **Phase 3 - Testing:** QA, testing, bug fixing
-- **Phase 4 - Deployment:** Release, monitoring, maintenance
+- **Phase 2 - Core Implementation:** Core features and backend logic
+- **Phase 3 - UI/Feature Development:** Frontend, user interfaces, features
+- **Phase 4 - Testing & Polish:** QA, testing, bug fixing, refinements
+- **Phase 5 - Deployment & Launch:** Release, monitoring, maintenance
+
+**🚨 IMPORTANT: Create ALL phase folders at once, not progressively.**
 
 ### 2.3 Configure Each Phase
 
@@ -206,18 +294,46 @@ For each phase, you MUST use the official phase templates from the Agentic Brain
 - Look for `AGENTS_templates/PHASE_TEMPLATE/README.md` and `CHECKLIST.md`
 - If you can't find them, the target repo may need re-scaffolding from the template
 
+**ERROR CHECK:** Verify templates exist before copying
+
 **Template locations:**
 - README template: `AGENTS_templates/PHASE_TEMPLATE/README.md`
 - CHECKLIST template: `AGENTS_templates/PHASE_TEMPLATE/CHECKLIST.md`
 
 **How to create phase folders:**
-1. For each phase (e.g., "Phase 1 - Foundation"), create folder: `AGENTS/Phase 1 - Foundation/`
-2. Copy `AGENTS_templates/PHASE_TEMPLATE/README.md` to `AGENTS/<Phase Name>/README.md`
-3. Copy `AGENTS_templates/PHASE_TEMPLATE/CHECKLIST.md` to `AGENTS/<Phase Name>/CHECKLIST.md`
+**⚠️ CRITICAL: CREATE ALL PHASES AT ONCE — NOT ONE BY ONE**
+
+**ERROR CHECK:** After creating each folder, verify it exists
+**ERROR CHECK:** After copying each README.md, verify file exists
+**ERROR CHECK:** After copying each CHECKLIST.md, verify file exists
+
+1. For EACH phase defined in the PRD, create folder: `AGENTS/Phase X - <Name>/`
+2. Copy `AGENTS_templates/PHASE_TEMPLATE/README.md` to EACH `AGENTS/<Phase Name>/README.md`
+3. Copy `AGENTS_templates/PHASE_TEMPLATE/CHECKLIST.md` to EACH `AGENTS/<Phase Name>/CHECKLIST.md`
 4. Update placeholders in the copied files:
-   - `<Phase Number>` → "1", "2", etc.
+   - `<Phase Number>` → "1", "2", "3", "4", "5" etc.
    - `<Phase Name>` → "Phase 1 - Foundation", "Phase 2 - Implementation", etc.
    - `<Short description>` → Brief phase goal
+
+**Example (create all 5 phases):**
+```powershell
+AGENTS/
+├── Phase 1 - Foundation/
+│   ├── README.md      # From template, placeholders updated
+│   └── CHECKLIST.md   # From template, placeholders updated
+├── Phase 2 - Core Implementation/
+│   ├── README.md
+│   └── CHECKLIST.md
+├── Phase 3 - UI Development/
+│   ├── README.md
+│   └── CHECKLIST.md
+├── Phase 4 - Testing & Polish/
+│   ├── README.md
+│   └── CHECKLIST.md
+└── Phase 5 - Deployment/
+    ├── README.md
+    └── CHECKLIST.md
+```
 
 **IMPORTANT - DO NOT:**
 - ❌ Generate custom checklist items with feature implementation tasks
@@ -240,11 +356,15 @@ The CHECKLIST.md should ONLY list:
 ### 2.4 Update Active Phase
 Set the first phase in `AGENTS/ACTIVE_PHASE.md`
 
+**ERROR CHECK:** Verify update completed: `cat AGENTS/ACTIVE_PHASE.md | Select-String "Phase 1"`
+
 ### 2.5 Update Memory Index
 Update `.github/agent_memory/00_index.md` with:
 - Project name from PRD
 - Created date
 - Current phase
+
+**ERROR CHECK:** Verify update completed: `cat .github/agent_memory/00_index.md | Select-String "Project Name"`
 
 ### 2.6 Update Progress Dashboard
 Update `AGENTS/PROGRESS_DASHBOARD.md` with:
@@ -252,11 +372,15 @@ Update `AGENTS/PROGRESS_DASHBOARD.md` with:
 - Phase structure
 - Initial metrics
 
+**ERROR CHECK:** Verify update completed: `cat AGENTS/PROGRESS_DASHBOARD.md | Select-String "Overall Status"`
+
 ### 2.7 Create REQUIRED_ASSETS.md (CRITICAL - DO THIS)
 
 Based on PRD and user's project idea, create `AGENTS/REQUIRED_ASSETS.md`:
 
 **Template:** Copy from `AGENTS_templates/REQUIRED_CUSTOM_AGENTS.md`
+
+**ERROR CHECK:** Verify template exists before copying
 
 Update these sections based on PRD:
 - **Repo Type:** frontend/backend/fullstack/data/infra
@@ -290,6 +414,36 @@ Update these sections based on PRD:
 ```
 
 **IMPORTANT:** This is a GENERAL list - Asset Curator in Phase 3 will find exact file matches from awesome-copilot. Don't guess specific filenames.
+
+**ERROR CHECK:** Verify REQUIRED_ASSETS.md created: `ls AGENTS/REQUIRED_ASSETS.md`
+
+### 2.8 FINAL VERIFICATION — ERROR CHECK (MANDATORY)
+
+After creating all phase folders, you MUST verify and REPORT to user:
+
+```powershell
+# Check all phases exist
+ls AGENTS/
+
+# For each phase, verify docs exist
+ls "AGENTS/Phase 1 - Foundation/"
+ls "AGENTS/Phase 2 - Core Implementation/"
+ls "AGENTS/Phase 3 - UI Development/"
+ls "AGENTS/Phase 4 - Testing & Polish/"
+ls "AGENTS/Phase 5 - Deployment/"
+```
+
+**🚨 IF ANYTHING IS MISSING, TELL USER IMMEDIATELY:**
+```
+⚠️ VERIFICATION FAILED: Missing phase folders or documentation
+- Missing: <list what's missing>
+- Action required: <what to fix>
+```
+
+**✅ ONLY when all phases are verified complete, tell user:**
+```
+Phase 2 Complete — All {N} phase folders created with README.md and CHECKLIST.md
+```
 
 ---
 

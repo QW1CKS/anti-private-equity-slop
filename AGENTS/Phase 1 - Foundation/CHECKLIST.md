@@ -12,32 +12,132 @@
 - Phase README template: [./README.md](./README.md)
 
 ## Phase Goal
-Set up the extension scaffold with MV3 manifest, minimal permission configuration, YouTube detection infrastructure, and blacklist sync base.
+Set up the foundational architecture for the Chrome MV3 extension including manifest configuration, service worker skeleton, and basic project structure with tooling.
 
 ## Key Deliverables
-- [ ] MV3 manifest.json with minimal permissions (storage, alarms, YouTube host, API host only)
-- [ ] Service worker background with message router scaffolded
-- [ ] YouTube page detection infrastructure in place
-- [ ] Blacklist storage layer with sync base implemented
-- [ ] Security floor enforced (no tabs, webRequest, notifications, or scripting in Phase 1)
+- [ ] Manifest V3 configuration with minimal permissions (storage, alarms, YouTube host permissions)
+- [ ] Service worker skeleton created and loads in Chrome
+- [ ] TypeScript project compiles without errors
+- [ ] Basic content script loads on YouTube watch/shorts/live pages
+- [ ] Project folder structure follows planned architecture
+- [ ] GitHub Actions CI workflow configured
 
-## Validation Commands (from PRD metadata)
-- Build: `npm run build`
-- Test: `npm test`
-- Lint: `npm run lint`
+---
 
-## Evidence Ledger Rules
-- Mark `[x]` only after implementation and verification.
-- Each completed action must include:
-	- artifacts changed,
-	- command result summary,
-	- action row reference in `.github/agent_memory/03_actions.tsv`.
-- Do not rewrite old evidence lines; append updates instead.
+## Agent - gem-orchestrator.agent.md
 
-## Required Agent Memory Workflow
-- Before any task execution, perform a silent pre-flight read of:
-	- `.github/copilot-instructions.md`
-	- `.github/agent_memory/00_index.md`
+### Memory Read
+- [ ] Pre-flight checklist completed and all required memory/catalog files loaded.
+
+### Actions
+- [ ] Initialize project with npm and install core dependencies (TypeScript, Vite, Vitest)
+- [ ] Create manifest.json with MV3 configuration and minimal permissions
+- [ ] Set up folder structure (src/background, src/content, src/shared, tests)
+- [ ] Configure GitHub Actions workflow for build/test/lint pipeline
+
+### Outputs
+- [ ] Deliverable: manifest.json with MV3 configuration
+- [ ] Deliverable: package.json with build/test/lint scripts
+- [ ] Deliverable: tsconfig.json and vite.config.ts
+- [ ] Deliverable: .github/workflows/ci.yml
+
+### Exit Checks
+- [ ] Build passes (npm run build)
+- [ ] Tests pass (npm test)
+- [ ] Lint passes (npm run lint)
+
+### Memory Write
+- [ ] Append one row to `.github/agent_memory/03_actions.tsv`
+- [ ] If architectural decisions changed, append to `.github/agent_memory/01_decisions.md`
+- [ ] If reusable implementation insight emerged, append to `.github/agent_memory/02_learnings.md`
+
+### Evidence
+- Artifacts: manifest.json, package.json, tsconfig.json, vite.config.ts, .github/workflows/ci.yml
+- Validation: Build, test, lint all pass
+
+---
+
+## Agent - typescript-mcp-expert.agent.md
+
+### Memory Read
+- [ ] Pre-flight checklist completed and all required memory/catalog files loaded.
+
+### Actions
+- [ ] Create TypeScript configuration with strict type checking
+- [ ] Set up Vite for Chrome Extension build with manifest handling
+- [ ] Implement basic YouTube URL detection in content script
+- [ ] Create service worker skeleton with message handling
+
+### Outputs
+- [ ] Deliverable: src/content/youtube-detector.ts with URL pattern matching
+- [ ] Deliverable: src/background/service-worker.ts basic skeleton
+
+### Exit Checks
+- [ ] TypeScript compiles without errors
+- [ ] Service worker loads in Chrome
+
+### Memory Write
+- [ ] Append one row to `.github/agent_memory/03_actions.tsv`
+- [ ] If architectural decisions changed, append to `.github/agent_memory/01_decisions.md`
+- [ ] If reusable implementation insight emerged, append to `.github/agent_memory/02_learnings.md`
+
+### Evidence
+- Artifacts: src/content/youtube-detector.ts, src/background/service-worker.ts
+- Validation: TypeScript compilation passes
+
+---
+
+## Agent - github-actions-expert.agent.md
+
+### Memory Read
+- [ ] Pre-flight checklist completed and all required memory/catalog files loaded.
+
+### Actions
+- [ ] Create CI workflow for build/test/lint pipeline
+- [ ] Configure matrix for Node.js versions
+- [ ] Set up caching for npm dependencies
+- [ ] Add workflow dispatch for manual runs
+
+### Outputs
+- [ ] Deliverable: .github/workflows/ci.yml
+
+### Exit Checks
+- [ ] Workflow syntax is valid
+- [ ] Workflow can be triggered
+
+### Memory Write
+- [ ] Append one row to `.github/agent_memory/03_actions.tsv`
+- [ ] If architectural decisions changed, append to `.github/agent_memory/01_decisions.md`
+
+### Evidence
+- Artifacts: .github/workflows/ci.yml
+- Validation: YAML syntax valid
+
+---
+
+## Agent - critical-thinking.agent.md
+
+### Memory Read
+- [ ] Pre-flight checklist completed and all required memory/catalog files loaded.
+
+### Actions
+- [ ] Review project structure against PRD requirements
+- [ ] Analyze permission set for minimum necessary access
+- [ ] Evaluate build tooling for extension compatibility
+
+### Outputs
+- [ ] Architectural review notes in memory
+
+### Exit Checks
+- [ ] All decisions documented
+
+### Memory Write
+- [ ] Append one row to `.github/agent_memory/03_actions.tsv`
+- [ ] Append architectural decisions to `.github/agent_memory/01_decisions.md`
+
+### Evidence
+- Artifacts: 01_decisions.md updates
+- Validation: All decisions recorded
 	- `.github/agent_memory/01_decisions.md`
 	- `.github/agent_memory/02_learnings.md`
 	- `.github/agent_memory/03_actions.tsv`
@@ -51,36 +151,3 @@ Set up the extension scaffold with MV3 manifest, minimal permission configuratio
 	- use literal tab separators,
 	- keep each record to one physical line,
 	- do not use markdown table pipes.
-- If `03_actions.tsv` or `05_handoffs.tsv` exceeds 100 lines, propose a memory compression task before continuing.
-
----
-
-## Agent 1 - `.github/agents/agents-orchestrator.agent.md`
-### Memory Read
-- [ ] Pre-flight checklist completed and all required memory/catalog files loaded.
-
-### Actions
-- [ ] Break phase down into checkpoints.
-- [ ] Coordinate agent work distribution.
-- [ ] Track progress against phase goals.
-
-### Exit Criteria
-- [ ] All Phase 1 artifacts created and verified
-- [ ] Phase 1 exit criteria documented in README.md
-- [ ] Handoff to Phase 2 prepared
-
----
-
-## Agent 2 - `.github/agents/critical-thinking.agent.md`
-### Memory Read
-- [ ] Pre-flight checklist completed and all required memory/catalog files loaded.
-
-### Actions
-- [ ] Review architecture decisions for Phase 1.
-- [ ] Validate security floor compliance.
-- [ ] Verify permission set matches PRD.
-
-### Exit Criteria
-- [ ] Security floor review completed
-- [ ] Permission set validated against Phase 1 requirements
-- [ ] Any architectural concerns documented
