@@ -1,0 +1,80 @@
+# Node modules
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+*.log
+
+# Dependency directories
+/.pnp/
+
+# Build output
+dist/
+build/
+out/
+release/
+lib/
+esm/
+cjs/
+
+# TypeScript
+*.tsbuildinfo
+
+# Coverage
+coverage/
+.nyc_output/
+
+# Editor directories and files
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment variables and secrets
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# Chrome extension artifacts and releases
+*.crx
+*.pem
+signed/
+unpacked/
+*.zip
+
+# Python virtualenv
+venv/
+.venv/
+env/
+
+# Caches
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+
+# Test artifacts
+playwright-report/
+test-results/
+
+# Repository folders
+.github/
+Agentic-Brain/
+AGENTS/
+
