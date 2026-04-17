@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Anti Private Equity Slop",
+  "version": "1.0.0",
+  "description": "Warns users about YouTube channels owned by private equity",
+  "permissions": [
+    "storage",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://www.youtube.com/*",
+    "https://*.privateequityblacklist.com/*"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "js": ["content/content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_page": "options/details.html",
+  "icons": {
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}

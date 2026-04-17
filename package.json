@@ -1,0 +1,29 @@
+{
+  "name": "anti-private-equity-slop",
+  "version": "1.0.0",
+  "description": "YouTube Private Equity Warning Extension - Chrome Manifest V3",
+  "private": true,
+  "scripts": {
+    "build": "tsc && node scripts/copy-assets.js && node scripts/bundle-content.js",
+    "bundle:content": "node scripts/bundle-content.js",
+    "dev": "tsc --watch",
+    "lint": "eslint src --ext .ts",
+    "test": "jest",
+    "package": "npm run build && npm run zip",
+    "zip": "powershell Compress-Archive -Path dist/* -DestinationPath extension.zip -Force"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.270",
+    "@types/jest": "^29.5.12",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.2",
+    "typescript": "^5.4.0",
+    "esbuild": "^0.18.20"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  }
+}

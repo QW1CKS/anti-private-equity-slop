@@ -1,0 +1,15 @@
+{
+  "banner_title": "Private Equity Channel Warning",
+  "banner_message": "This channel '{channel}' is owned by private equity.",
+  "more_info": "More Info",
+  "dismiss": "Dismiss for 4 Hours",
+  "close": "Close",
+  "details_title": "About Private Equity Warning",
+  "details_description": "This extension warns you about YouTube channels that are owned by private equity firms.",
+  "details_how_works": "How It Works",
+  "details_how_works_desc": "The extension maintains a local blacklist of private equity-owned channels. When you visit a YouTube video or channel page, it checks the channel against this list and shows a warning if there's a match.",
+  "details_privacy": "Privacy",
+  "details_privacy_desc": "All matching happens locally in your browser. No browsing data is sent to any server.",
+  "details_source": "Data Source",
+  "details_source_desc": "The blacklist is updated from a public API. Updates are cached locally for performance."
+}
