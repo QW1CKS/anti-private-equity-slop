@@ -9,6 +9,31 @@
 3. Paste the script below and press Enter.
 4. The script will output a ready-to-paste JSON object and copy it to your clipboard.
 
+## Opening Developer Tools and where to paste the helper
+
+If you're not familiar with Developer Tools, use the steps below for your browser. Always paste the helper into the **Console** panel.
+
+- Chrome / Edge:
+  - Windows / Linux: press `Ctrl+Shift+I` or `F12`
+  - macOS: press `⌥ Option + ⌘ Command + I`
+  - Or open the browser menu → More tools → Developer tools, then select the **Console** tab.
+- Firefox:
+  - Windows / Linux: press `Ctrl+Shift+K`
+  - macOS: press `⌘ Command + ⌥ Option + K`
+  - Or open the menu → Web Developer → Web Console.
+- Safari (macOS):
+  - Enable the Develop menu in Safari Preferences → Advanced → check "Show Develop menu in menu bar".
+  - Then choose Develop → Show JavaScript Console or press `⌥ Option + ⌘ Command + C`.
+
+Where to paste and run:
+
+- Switch to the **Console** tab (you should see a prompt or an entry area).
+- Paste the entire script (including the leading `(async () => {` and trailing `})();`).
+- Press `Enter` to run the helper. The script will attempt to copy the generated JSON to your clipboard and will also print it in the console.
+- If clipboard access is blocked, copy the printed JSON from the console and paste it into `blacklist.json` manually.
+
+Before pasting, double-check the URL bar to confirm you're on the channel page (it should contain `/channel/UC...` or start with `/@`).
+
 **Important:**
 - Do **not** modify the top-level `version`, `updatedAt`, or `signature` fields in [blacklist.json](blacklist.json).
 - Only append a new object to the `entries` array and provide a clear `reason`.
