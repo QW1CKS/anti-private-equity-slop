@@ -102,8 +102,6 @@ Thank you for helping keep the blacklist current! This project accepts PRs that 
 
 ---
 
-## What to paste into [blacklist.json](blacklist.json)
-
 Open `blacklist.json` and append the generated object to the `entries` array. Example entry format (the helper produces the same shape):
 
 ```json
