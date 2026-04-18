@@ -118,11 +118,11 @@ async function onPageChange(): Promise<void> {
   await delay(500);
 
   // Try extraction with retries because YouTube is SPA and data may load slowly
-  await tryExtractAndCheck(3);
+  await tryExtractAndCheck(6);
 }
 
 // Try to extract channel info multiple times with small delays
-async function tryExtractAndCheck(triesLeft = 3): Promise<void> {
+async function tryExtractAndCheck(triesLeft = 6): Promise<void> {
   const channelInfo = extractChannelInfo();
   console.debug('APE debug: extracted channelInfo', channelInfo, 'triesLeft', triesLeft);
   if (channelInfo) {

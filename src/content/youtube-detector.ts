@@ -25,6 +25,20 @@ const YOUTUBE_PATTERNS = {
   LIVE: /^\/live\/([^/?#]+)/,
 };
 
+// Heuristic to detect placeholder or encoded gibberish strings that are not real channel names
+function isLikelyPlaceholder(raw?: string): boolean {
+  if (!raw) return false;
+  const s = raw.trim();
+  if (!s) return false;
+  // uppercase identifiers like GUIDED_HELP or ALL_CAPS_WITH_UNDERSCORES
+  if (/^[A-Z0-9_\-]+$/.test(s) && s === s.toUpperCase() && s.includes('_')) return true;
+  // percent-encoded or base64-like strings
+  if (/^[A-Za-z0-9+/=%-]{12,}$/.test(s)) return true;
+  // strings that contain lots of percent encodings or equals signs
+  if (/[=%]{2,}/.test(s)) return true;
+  return false;
+}
+
 // Extract video ID from various YouTube URL patterns
 function extractVideoId(pathname: string, searchParams: URLSearchParams): string | null {
   if (YOUTUBE_PATTERNS.WATCH.test(pathname)) {
@@ -216,7 +230,7 @@ export function getChannelNameFromPage(): string | null {
       if (txt) {
         const t = txt.toLowerCase();
         const generic = ['your videos', 'videos', 'home', 'playlists', 'channels', 'community', 'shorts'];
-        if (!generic.includes(t)) return txt;
+        if (!generic.includes(t) && !isLikelyPlaceholder(txt)) return txt;
       }
     }
   } catch {
@@ -413,7 +427,12 @@ export function getChannelInfoFromPage(): { channelId?: string; channelName?: st
     const metaChannel = document.querySelector('meta[itemprop="channelId"]') as HTMLMetaElement | null;
     const metaName = document.querySelector('meta[itemprop="name"]') as HTMLMetaElement | null;
     if (metaChannel && metaChannel.content) {
-      return { channelId: metaChannel.content, channelName: metaName?.content };
+      const mn = metaName?.content;
+      // Skip placeholder-looking meta names (e.g., GUIDED_HELP) to avoid false positives
+      if (mn && !isLikelyPlaceholder(mn)) {
+        return { channelId: metaChannel.content, channelName: mn };
+      }
+      // otherwise continue to other heuristics
     }
   } catch {
     // ignore
@@ -439,7 +458,8 @@ export function getChannelInfoFromPage(): { channelId?: string; channelName?: st
 
     const isGenericLabel = (s?: string) => {
       if (!s) return true;
-      const t = s.trim().toLowerCase();
+      const raw = s.trim();
+      const t = raw.toLowerCase();
       if (!t) return true;
       const stop = [
         'your videos', 'videos', 'home', 'playlists', 'channels', 'community', 'shorts',
@@ -447,6 +467,7 @@ export function getChannelInfoFromPage(): { channelId?: string; channelName?: st
       ];
       if (stop.includes(t)) return true;
       if (t.length < 2) return true;
+      if (isLikelyPlaceholder(raw)) return true;
       if (!/[a-zA-Z\p{L}]/u.test(t)) return true;
       return false;
     };
@@ -464,15 +485,14 @@ export function getChannelInfoFromPage(): { channelId?: string; channelName?: st
       if (!ownerAnchor) ownerAnchor = ownerRenderer.querySelector<HTMLAnchorElement>('ytd-channel-name a');
       if (!ownerAnchor) ownerAnchor = ownerRenderer.querySelector<HTMLAnchorElement>('a');
 
-      if (ownerAnchor && ownerAnchor.href) {
-        ownerAnchorHref = ownerAnchor.href;
-        const text = (ownerAnchor.textContent || ownerRenderer.textContent || '').trim();
-        // Debug: log the element and text being picked up
-        console.debug('APE debug: ownerAnchor', ownerAnchor, 'text:', text);
-        const cleaned = cleanChannelName(text);
-        // Heuristic: skip if looks like base64, percent-encoded, or not human readable
-        if (cleaned && !isGenericLabel(cleaned) && /^[\w\-+=%]{12,}$/.test(cleaned) === false) ownerAnchorText = cleaned;
-      }
+        if (ownerAnchor && ownerAnchor.href) {
+          ownerAnchorHref = ownerAnchor.href;
+          const text = (ownerAnchor.textContent || ownerRenderer.textContent || '').trim();
+          // Debug: log the element and text being picked up
+          console.debug('APE debug: ownerAnchor', ownerAnchor, 'text:', text);
+          const cleaned = cleanChannelName(text);
+          if (cleaned && !isGenericLabel(cleaned) && !isLikelyPlaceholder(cleaned)) ownerAnchorText = cleaned;
+        }
     }
   } catch {
     // ignore
@@ -490,9 +510,9 @@ export function getChannelInfoFromPage(): { channelId?: string; channelName?: st
         return { channelId: cid, channelName: ownerAnchorText || undefined };
       }
 
-      if (ownerAnchorText) {
-        // return a best-effort result with handle/customUrl if present
-        return { channelName: ownerAnchorText, handle: handle || undefined, customUrl: custom || undefined } as any;
+      // Return handle/customUrl even if the visible name is not yet available
+      if (ownerAnchorText || handle || custom) {
+        return { channelName: ownerAnchorText || undefined, handle: handle || undefined, customUrl: custom || undefined } as any;
       }
     } catch {
       // ignore parse errors
@@ -503,7 +523,8 @@ export function getChannelInfoFromPage(): { channelId?: string; channelName?: st
   const ytInitialData = getYtInitialData();
   if (ytInitialData) {
     const channelIdFromData = extractChannelIdFromYtInitialData(ytInitialData);
-    const channelNameFromData = extractChannelNameFromYtInitialData(ytInitialData);
+    let channelNameFromData = extractChannelNameFromYtInitialData(ytInitialData);
+    if (channelNameFromData && isLikelyPlaceholder(channelNameFromData)) channelNameFromData = null;
 
     // Helper to detect and ignore generic UI labels
     const isGenericLabel = (s?: string) => {
