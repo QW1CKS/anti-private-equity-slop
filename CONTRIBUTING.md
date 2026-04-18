@@ -2,15 +2,14 @@
 # How to contribute channels to the blacklist
 
 
+Thank you for helping keep the blacklist current! This project accepts PRs that add channels to the shared blacklist. The easiest way to prepare a correct entry is to run the helper below in your browser console **while on the YouTube channel page** for the channel you want to blacklist.
 
-<p align="center">
-<strong>
-<span style="color:red; font-size:1.2em;">
-🚨 <span style="color:red;">WARNING:</span> Run the script <u>ONLY</u> on the YouTube <b>channel page</b> (URL like <code>youtube.com/channel/UC...</code> or <code>youtube.com/@handle</code>).<br>
-<span style="color:red;">Do <u>NOT</u> run it on a video page or anywhere else!</span>
-</span>
-</strong>
-</p>
+<br>
+
+<div style="background-color: #ffebe9; border: 2px solid #ff8182; padding: 12px; border-radius: 6px; margin: 12px 0;">
+<strong style="color: #cf222e;">⛔ STOP — Run this script ONLY on the channel page!</strong><br>
+<span style="color: #cf222e;">Your URL must look like <code>youtube.com/@handle</code> or <code>youtube.com/channel/UC...</code> — NOT a video page, NOT the homepage, NOT anywhere else.</span>
+</div>
 
 **How to use the helper:**
 1. Open the channel page for the channel you want to blacklist. (Do **not** use a video page or any other page.)
