@@ -82,10 +82,18 @@ async function handleCheckChannel(message: ChannelCheckMessage): Promise<{
   console.log('Channel check requested:', { channelId, channelName, handle, customUrl });
 
   // Get current blacklist
-  const snapshot = await getBlacklist();
-  
+  let snapshot = await getBlacklist();
+
   if (!snapshot || !snapshot.entries || snapshot.entries.length === 0) {
-    console.log('No blacklist available');
+    console.log('No blacklist available - attempting one-shot sync');
+    const syncResult = await syncBlacklist();
+    if (syncResult.updated) {
+      snapshot = await getBlacklist();
+    }
+  }
+
+  if (!snapshot || !snapshot.entries || snapshot.entries.length === 0) {
+    console.log('No blacklist available after sync');
     return { isBlacklisted: false };
   }
 

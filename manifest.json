@@ -9,7 +9,8 @@
   ],
   "host_permissions": [
     "https://www.youtube.com/*",
-    "https://*.privateequityblacklist.com/*"
+    "https://*.privateequityblacklist.com/*",
+    "https://raw.githubusercontent.com/*"
   ],
   "background": {
     "service_worker": "background/service-worker.js",

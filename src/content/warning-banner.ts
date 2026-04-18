@@ -22,28 +22,42 @@ let bannerElement: HTMLElement | null = null;
 
 // Initialize banner state from storage
 async function getBannerState(): Promise<BannerState> {
-  const result = await chrome.storage.local.get(BANNER_STORAGE_KEY);
-  const stored = result[BANNER_STORAGE_KEY] as BannerState | undefined;
-  
-  if (!stored) {
-    return { isVisible: false, dismissed: false };
-  }
-  
-  // Check if suppress period has expired
-  if (stored.dismissed && stored.dismissTime) {
-    if (Date.now() - stored.dismissTime > SUPPRESS_DURATION_MS) {
-      // Suppress period expired, reset state
-      await chrome.storage.local.remove(BANNER_STORAGE_KEY);
+  try {
+    const result = await chrome.storage.local.get(BANNER_STORAGE_KEY);
+    const stored = result[BANNER_STORAGE_KEY] as BannerState | undefined;
+
+    if (!stored) {
       return { isVisible: false, dismissed: false };
     }
+
+    // Check if suppress period has expired
+    if (stored.dismissed && stored.dismissTime) {
+      if (Date.now() - stored.dismissTime > SUPPRESS_DURATION_MS) {
+        // Suppress period expired, reset state
+        try {
+          await chrome.storage.local.remove(BANNER_STORAGE_KEY);
+        } catch (err) {
+          console.warn('Failed to remove banner state (extension context?):', err);
+        }
+        return { isVisible: false, dismissed: false };
+      }
+    }
+
+    return stored;
+  } catch (err) {
+    // This can happen when the extension context was reloaded/invalidated
+    console.warn('Failed to read banner state (extension context may be invalidated):', err);
+    return { isVisible: false, dismissed: false };
   }
-  
-  return stored;
 }
 
 // Save banner state to storage
 async function saveBannerState(state: BannerState): Promise<void> {
-  await chrome.storage.local.set({ [BANNER_STORAGE_KEY]: state });
+  try {
+    await chrome.storage.local.set({ [BANNER_STORAGE_KEY]: state });
+  } catch (err) {
+    console.warn('Failed to save banner state (extension context may be invalidated):', err);
+  }
 }
 
 // Create the warning banner using Shadow-DOM for isolation
@@ -236,9 +250,18 @@ export async function showWarningBanner(channelName: string, reason?: string): P
   const closeBtn = bannerElement.shadowRoot?.getElementById('pew-close');
   
   moreInfoBtn?.addEventListener('click', () => {
-    // Open extension details page
-    chrome.runtime.sendMessage({ type: 'OPEN_DETAILS_PAGE' });
-    hideWarningBanner();
+    // Open extension details page (best-effort)
+    try {
+      const p = chrome.runtime.sendMessage({ type: 'OPEN_DETAILS_PAGE' });
+      if (p && typeof (p as Promise<unknown>).catch === 'function') {
+        (p as Promise<unknown>).catch(() => {});
+      }
+    } catch (err) {
+      console.warn('Failed to send OPEN_DETAILS_PAGE message (extension may be reloading):', err);
+    }
+
+    // Best-effort hide
+    void hideWarningBanner();
   });
   
   const dismissHandler = () => {
@@ -261,13 +284,17 @@ export async function hideWarningBanner(): Promise<void> {
     bannerElement.remove();
     bannerElement = null;
   }
-  
-  // Update state to dismissed with timestamp
-  await saveBannerState({ 
-    isVisible: false, 
-    dismissed: true, 
-    dismissTime: Date.now() 
-  });
+  // Update state to dismissed with timestamp (guarded)
+  try {
+    await saveBannerState({
+      isVisible: false,
+      dismissed: true,
+      dismissTime: Date.now(),
+    });
+  } catch (err) {
+    // saveBannerState already logs, but guard here to prevent unhandled rejections
+    console.warn('hideWarningBanner: saveBannerState failed:', err);
+  }
 }
 
 // Check if banner is currently visible
@@ -277,6 +304,11 @@ export function isBannerVisible(): boolean {
 
 // Clear banner state (for testing or reset)
 export async function clearBannerState(): Promise<void> {
-  await chrome.storage.local.remove(BANNER_STORAGE_KEY);
-  hideWarningBanner();
+  try {
+    await chrome.storage.local.remove(BANNER_STORAGE_KEY);
+  } catch (err) {
+    console.warn('clearBannerState: failed to remove storage key:', err);
+  }
+
+  void hideWarningBanner();
 }

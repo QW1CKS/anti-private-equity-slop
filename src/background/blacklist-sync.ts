@@ -5,18 +5,25 @@
 import { isValidSnapshot } from '../shared/blacklist-schema.js';
 import type { BlacklistSnapshot } from '../shared/blacklist-schema.js';
 import { STORAGE_KEYS } from '../shared/types.js';
-
-// API configuration (would come from config in production)
-const API_BASE = 'https://api.privateequityblacklist.com/v1';
+import { BLACKLIST_RAW_URL } from '../shared/config.js';
 
 // Storage interface wrapper
 async function getStorage<T>(key: string): Promise<T | null> {
-  const result = await chrome.storage.local.get(key) as Record<string, T>;
-  return result[key] ?? null;
+  try {
+    const result = await chrome.storage.local.get(key) as Record<string, T>;
+    return result[key] ?? null;
+  } catch (err) {
+    console.warn('getStorage: chrome.storage.local.get failed:', err);
+    return null;
+  }
 }
 
 async function setStorage<T>(key: string, value: T): Promise<void> {
-  await chrome.storage.local.set({ [key]: value });
+  try {
+    await chrome.storage.local.set({ [key]: value });
+  } catch (err) {
+    console.warn('setStorage: chrome.storage.local.set failed:', err);
+  }
 }
 
 // Fetch with ETag support
@@ -68,34 +75,16 @@ async function verifySignature(
   return true;
 }
 
-// Fetch manifest to check for updates
-async function fetchManifest(): Promise<{ version: string; updatedAt: string } | null> {
-  try {
-    const { data, etag, notModified } = await fetchWithETag(
-      `${API_BASE}/manifest`,
-      await getStorage<string>(STORAGE_KEYS.ETAG + '-manifest') ?? undefined
-    );
-
-    if (notModified) {
-      return null;
-    }
-
-    if (etag) {
-      await setStorage(STORAGE_KEYS.ETAG + '-manifest', etag);
-    }
-
-    return data as { version: string; updatedAt: string };
-  } catch (error) {
-    console.error('Failed to fetch manifest:', error);
+// Fetch the raw blacklist JSON from a GitHub raw URL (configured in src/shared/config.ts)
+async function fetchSnapshotFromRawUrl(): Promise<BlacklistSnapshot | null> {
+  if (!BLACKLIST_RAW_URL || BLACKLIST_RAW_URL.includes('USERNAME')) {
+    console.warn('BLACKLIST_RAW_URL is not configured; skipping remote fetch');
     return null;
   }
-}
 
-// Fetch full blacklist snapshot
-async function fetchSnapshot(version: string): Promise<BlacklistSnapshot | null> {
   try {
     const { data, etag, notModified } = await fetchWithETag(
-      `${API_BASE}/snapshot?version=${version}`,
+      BLACKLIST_RAW_URL,
       await getStorage<string>(STORAGE_KEYS.ETAG) ?? undefined
     );
 
@@ -104,7 +93,7 @@ async function fetchSnapshot(version: string): Promise<BlacklistSnapshot | null>
     }
 
     if (!isValidSnapshot(data)) {
-      console.error('Invalid snapshot format');
+      console.error('Invalid snapshot format from raw URL');
       return null;
     }
 
@@ -112,22 +101,9 @@ async function fetchSnapshot(version: string): Promise<BlacklistSnapshot | null>
       await setStorage(STORAGE_KEYS.ETAG, etag);
     }
 
-    // Verify signature
-    const dataWithSignature = data as BlacklistSnapshot;
-    const signatureValid = await verifySignature(
-      data,
-      dataWithSignature.signature,
-      'public-key-placeholder'
-    );
-
-    if (!signatureValid) {
-      console.error('Signature verification failed');
-      return null;
-    }
-
-    return data;
+    return data as BlacklistSnapshot;
   } catch (error) {
-    console.error('Failed to fetch snapshot:', error);
+    console.error('Failed to fetch snapshot from raw URL:', error);
     return null;
   }
 }
@@ -152,44 +128,17 @@ export async function syncBlacklist(force = false): Promise<{
   error?: string;
 }> {
   try {
-    // Check manifest for updates
-    const manifest = await fetchManifest();
-
-    if (!manifest) {
-      // No update available
-      const cached = await getBlacklist();
-      return {
-        success: true,
-        updated: false,
-        cached: !!cached,
-        version: cached?.version,
-      };
-    }
-
-    const cachedVersion = await getCachedVersion();
-
-    // Skip if already at latest version (unless forced)
-    if (!force && cachedVersion === manifest.version) {
-      return {
-        success: true,
-        updated: false,
-        cached: true,
-        version: manifest.version,
-      };
-    }
-
-    // Fetch new snapshot
-    const snapshot = await fetchSnapshot(manifest.version);
+    // Try to fetch a snapshot from the configured raw GitHub URL
+    const snapshot = await fetchSnapshotFromRawUrl();
 
     if (!snapshot) {
-      // Failed to fetch, return cached
+      // Nothing updated or fetch failed; return cached state
       const cached = await getBlacklist();
       return {
-        success: false,
+        success: true,
         updated: false,
         cached: !!cached,
         version: cached?.version,
-        error: 'Failed to fetch snapshot',
       };
     }
 
@@ -233,10 +182,8 @@ export async function getBlacklistWithRevalidate(): Promise<{
   });
 
   // Determine if cached data is stale (older than 24 hours)
-  const lastSync = await chrome.storage.local.get(STORAGE_KEYS.LAST_SYNC) as Record<string, string>;
-  const lastSyncTime = lastSync[STORAGE_KEYS.LAST_SYNC]
-    ? new Date(lastSync[STORAGE_KEYS.LAST_SYNC]).getTime()
-    : 0;
+  const lastSyncStr = await getStorage<string>(STORAGE_KEYS.LAST_SYNC);
+  const lastSyncTime = lastSyncStr ? new Date(lastSyncStr).getTime() : 0;
 
   const staleThreshold = 24 * 60 * 60 * 1000; // 24 hours
   const isStale = Date.now() - lastSyncTime > staleThreshold;

@@ -255,10 +255,18 @@ function extractChannelNameFromYtInitialData(data: unknown): string | null {
 
   const dataObj = data as Record<string, unknown>;
 
+  // Prefer channel title/owner fields before falling back to the video title.
   const paths = [
+    // Common place for channel title on watch pages
+    'contents.twoColumnWatchNextResults.results.results.contents.0.videoPrimaryInfoRenderer.channelTitle.simpleText',
+    // Newer structures expose owner renderer with runs array
+    'contents.twoColumnWatchNextResults.results.results.contents.0.videoPrimaryInfoRenderer.owner.videoOwnerRenderer.title.runs.0.text',
+    // Player/player overlay may include owner or video details; try common fallbacks
+    'playerResponse.videoDetails.author',
+    'videoDetails.author',
+    // Finally, fall back to video title (least desirable)
     'playerOverlays.playerOverlayRenderer.videoDetailsWatchOverlay.title.simpleText',
     'contents.twoColumnWatchNextResults.results.results.contents.0.videoPrimaryInfoRenderer.title.simpleText',
-    'contents.twoColumnWatchNextResults.results.results.contents.0.videoPrimaryInfoRenderer.channelTitle.simpleText',
   ];
 
   for (const path of paths) {
