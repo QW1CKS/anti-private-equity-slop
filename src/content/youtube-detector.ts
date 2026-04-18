@@ -198,9 +198,9 @@ function getYtInitialData(): unknown {
   }
 
   // 2) Check common global variables YouTube injects
-  const win = window as any;
-  if (win.ytInitialData) return win.ytInitialData;
-  if (win.ytInitialPlayerResponse) return win.ytInitialPlayerResponse;
+  const g = window as unknown as Record<string, unknown>;
+  if (g['ytInitialData']) return g['ytInitialData'];
+  if (g['ytInitialPlayerResponse']) return g['ytInitialPlayerResponse'];
 
   // 3) Search inline scripts for assignments like "ytInitialData = {...}" or "window.ytInitialData = {...}"
   const scripts = Array.from(document.scripts);
@@ -209,18 +209,18 @@ function getYtInitialData(): unknown {
     // try to extract ytInitialData JSON
     const m = txt.match(/ytInitialData\s*=\s*(\{[\s\S]*?\})\s*;/m);
     if (m && m[1]) {
-      try { return JSON.parse(m[1]); } catch {}
+      try { return JSON.parse(m[1]); } catch (e) { void e; }
     }
 
     // try ytInitialPlayerResponse
     const p = txt.match(/ytInitialPlayerResponse\s*=\s*(\{[\s\S]*?\})\s*;/m);
     if (p && p[1]) {
-      try { return JSON.parse(p[1]); } catch {}
+      try { return JSON.parse(p[1]); } catch (e) { void e; }
     }
   }
 
   // 4) As a last resort, try reading window.__INITIAL_DATA__-like aliases
-  if (win.__INITIAL_DATA__) return win.__INITIAL_DATA__;
+  if (g['__INITIAL_DATA__']) return g['__INITIAL_DATA__'];
 
   return null;
 }
