@@ -5,7 +5,7 @@ const path = require('path');
 const projectRoot = path.join(__dirname, '..');
 
 // Files and directories to copy to dist
-const assets = ['manifest.json', 'public', 'icons', 'src/options'];
+const assets = ['manifest.json', 'blacklist.json', 'public', 'icons', 'src/options'];
 
 assets.forEach(asset => {
   const src = path.join(projectRoot, asset);

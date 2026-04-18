@@ -151,10 +151,10 @@ function extractChannelInfo(): {
 
   // Combine all sources
     const result = {
-      channelId: urlInfo?.channelId || pageInfo?.channelId || void 0,
-      channelName: pageInfo?.channelName || void 0,
-      handle: urlInfo?.handle,
-      customUrl: urlInfo?.customUrl
+        channelId: urlInfo?.channelId || pageInfo?.channelId || void 0,
+        channelName: pageInfo?.channelName || void 0,
+        handle: urlInfo?.handle || (pageInfo as any)?.handle,
+        customUrl: urlInfo?.customUrl || (pageInfo as any)?.customUrl
   };
 
   // Need at least one identifier to check
@@ -280,12 +280,36 @@ async function tryFallbackCheck(channelInfo: {
   customUrl?: string;
 }): Promise<ChannelCheckResponse> {
   try {
-    const res = await fetch(BLACKLIST_RAW_URL, { cache: 'no-store' });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const snapshot = await res.json();
+    // Try packaged blacklist first (extension resource) to avoid network dependency
+    let snapshot: any = null;
+    try {
+      const localUrl = chrome.runtime.getURL('blacklist.json');
+      const localRes = await fetch(localUrl, { cache: 'no-store' });
+      if (localRes.ok) snapshot = await localRes.json();
+    } catch (e) {
+      // ignore local fetch failures
+    }
+
+    // If no packaged snapshot, try remote raw URL
+    if (!snapshot) {
+      if (!BLACKLIST_RAW_URL || BLACKLIST_RAW_URL.includes('USERNAME')) {
+        console.warn('No valid BLACKLIST_RAW_URL configured');
+        return { isBlacklisted: false };
+      }
+      const res = await fetch(BLACKLIST_RAW_URL, { cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      snapshot = await res.json();
+    }
+
     const entries = Array.isArray(snapshot?.entries) ? snapshot.entries : [];
 
-    const normalize = (s: any) => (typeof s === 'string' ? s.trim().toLowerCase() : '');
+    const normalize = (s: any) => {
+      if (typeof s !== 'string') return '';
+      let t = s.replace(/\s+/g, ' ').trim();
+      const idx = t.search(/\bsubscribers\b/i);
+      if (idx !== -1) t = t.slice(0, idx).trim();
+      return t.toLowerCase();
+    };
 
     for (const entry of entries) {
       if (!entry) continue;
@@ -293,15 +317,18 @@ async function tryFallbackCheck(channelInfo: {
       if (channelInfo.channelId && entry.channelId === channelInfo.channelId) {
         return { isBlacklisted: true, channelName: entry.channelName, reason: entry.reason };
       }
-      // match by handle
-      if (channelInfo.handle && Array.isArray(entry.handles) && entry.handles.includes(channelInfo.handle)) {
-        return { isBlacklisted: true, channelName: entry.channelName, reason: entry.reason };
+      // match by handle (case-insensitive)
+      if (channelInfo.handle && Array.isArray(entry.handles)) {
+        const handles = entry.handles.map((h: string) => String(h).toLowerCase());
+        if (handles.includes(String(channelInfo.handle).toLowerCase())) {
+          return { isBlacklisted: true, channelName: entry.channelName, reason: entry.reason };
+        }
       }
       // match by customUrl
       if (channelInfo.customUrl && entry.customUrl === channelInfo.customUrl) {
         return { isBlacklisted: true, channelName: entry.channelName, reason: entry.reason };
       }
-      // match by channelName (case-insensitive exact)
+      // match by channelName (case-insensitive exact after cleaning)
       if (channelInfo.channelName && normalize(entry.channelName) === normalize(channelInfo.channelName)) {
         return { isBlacklisted: true, channelName: entry.channelName, reason: entry.reason };
       }
@@ -356,15 +383,24 @@ async function getCachedSnapshotFromStorage(): Promise<any | null> {
 function checkSnapshotForMatch(snapshot: any, channelInfo: { channelId?: string; channelName?: string; handle?: string; customUrl?: string; }): ChannelCheckResponse | null {
   try {
     const entries = Array.isArray(snapshot?.entries) ? snapshot.entries : [];
-    const normalize = (s: any) => (typeof s === 'string' ? s.trim().toLowerCase() : '');
+    const normalize = (s: any) => {
+      if (typeof s !== 'string') return '';
+      let t = s.replace(/\s+/g, ' ').trim();
+      const idx = t.search(/\bsubscribers\b/i);
+      if (idx !== -1) t = t.slice(0, idx).trim();
+      return t.toLowerCase();
+    };
 
     for (const entry of entries) {
       if (!entry) continue;
       if (channelInfo.channelId && entry.channelId === channelInfo.channelId) {
         return { isBlacklisted: true, channelName: entry.channelName, reason: entry.reason };
       }
-      if (channelInfo.handle && Array.isArray(entry.handles) && entry.handles.includes(channelInfo.handle)) {
-        return { isBlacklisted: true, channelName: entry.channelName, reason: entry.reason };
+      if (channelInfo.handle && Array.isArray(entry.handles)) {
+        const handles = entry.handles.map((h: string) => String(h).toLowerCase());
+        if (handles.includes(String(channelInfo.handle).toLowerCase())) {
+          return { isBlacklisted: true, channelName: entry.channelName, reason: entry.reason };
+        }
       }
       if (channelInfo.customUrl && entry.customUrl === channelInfo.customUrl) {
         return { isBlacklisted: true, channelName: entry.channelName, reason: entry.reason };
