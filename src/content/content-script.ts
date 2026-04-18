@@ -131,8 +131,8 @@ async function onPageChange(): Promise<void> {
 async function tryExtractAndCheck(triesLeft = 6): Promise<void> {
   const channelInfo = extractChannelInfo();
   console.debug('APE debug: extracted channelInfo', channelInfo, 'triesLeft', triesLeft);
-  // Only proceed if we have a valid handle or channelId and non-empty channelName
-  if (channelInfo && (channelInfo.handle || channelInfo.channelId) && channelInfo.channelName) {
+  // Only proceed if we have a valid handle, channelId, or customUrl and non-empty channelName
+  if (channelInfo && (channelInfo.handle || channelInfo.channelId || channelInfo.customUrl) && channelInfo.channelName) {
     await checkChannel(channelInfo);
     return;
   }

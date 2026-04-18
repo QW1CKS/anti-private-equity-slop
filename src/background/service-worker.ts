@@ -39,7 +39,7 @@ export interface BlacklistSyncMessage extends Message {
 export interface ChannelCheckMessage extends Message {
   type: 'CHECK_CHANNEL';
   payload: {
-    channelId: string;
+    channelId?: string;
     channelName?: string;
     handle?: string;
     customUrl?: string;

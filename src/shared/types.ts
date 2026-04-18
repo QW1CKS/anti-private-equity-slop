@@ -4,14 +4,14 @@
 
 // Channel information
 export interface ChannelInfo {
-  channelId: string;
+  channelId?: string;
   channelName: string;
   videoId?: string;
 }
 
 // Blacklist entry
 export interface BlacklistEntry {
-  channelId: string;
+  channelId?: string;
   channelName: string;
   addedAt: string;
   reason?: string;
