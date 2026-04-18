@@ -172,6 +172,13 @@ async function checkChannel(channelInfo: {
   handle?: string;
   customUrl?: string;
 }): Promise<void> {
+  // If the extension context was recently invalidated (extension reloaded),
+  // avoid hammering the chrome APIs and back off briefly.
+  if ((window as any).__APE_extensionContextInvalidatedUntil && Date.now() < (window as any).__APE_extensionContextInvalidatedUntil) {
+    console.warn('Skipping CHECK_CHANNEL because extension context recently invalidated');
+    return;
+  }
+
   // First, try a local cached blacklist (fast path, avoids sending messages to the SW)
   try {
     const cached = await getCachedSnapshotFromStorage();
@@ -215,6 +222,17 @@ async function checkChannel(channelInfo: {
       return;
     } catch (error) {
       console.warn('CHECK_CHANNEL attempt', attempts, 'failed:', error);
+      // If the extension context was invalidated (common during dev reloads),
+      // back off and avoid repeated attempts for a short period.
+      try {
+        const msg = (error && (error as any).message) || String(error);
+        if (typeof msg === 'string' && msg.includes('Extension context invalidated')) {
+          // Back off for 30s
+          (window as any).__APE_extensionContextInvalidatedUntil = Date.now() + 30_000;
+          console.warn('Extension context invalidated detected; backing off for 30s');
+          break;
+        }
+      } catch {}
       // If this was the last attempt, break and try fallback
       if (attempts >= maxAttempts)
         break;
@@ -323,6 +341,13 @@ async function getCachedSnapshotFromStorage(): Promise<any | null> {
     return result[STORAGE_KEYS.BLACKLIST] ?? null;
   } catch (err) {
     console.warn('getCachedSnapshotFromStorage failed:', err);
+    try {
+      const msg = (err && (err as any).message) || String(err);
+      if (typeof msg === 'string' && msg.includes('Extension context invalidated')) {
+        (window as any).__APE_extensionContextInvalidatedUntil = Date.now() + 30_000;
+        console.warn('Extension context invalidated detected while reading storage; backing off for 30s');
+      }
+    } catch {}
     return null;
   }
 }
