@@ -141,6 +141,29 @@ export function getChannelIdFromPage(): string | null {
     }
   }
 
+  // Prefer explicit owner link rendered near the video (more reliable than scanning all anchors)
+  try {
+    const ownerSelectors = [
+      'ytd-video-owner-renderer a[href*="/channel/"]',
+      'ytd-channel-name a[href*="/channel/"]',
+      'a.yt-simple-endpoint.yt-formatted-string[href*="/channel/"]'
+    ];
+    for (const sel of ownerSelectors) {
+      const ownerLink = document.querySelector<HTMLAnchorElement>(sel);
+      if (ownerLink) {
+        try {
+          const u = new URL(ownerLink.href, location.origin);
+          const cid = extractChannelIdFromUrl(u.pathname);
+          if (cid && cid.startsWith('UC')) return cid;
+        } catch {
+          // ignore
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+
   // Fallback: scan anchors in the page for a channel link (e.g., /channel/UC...)
   try {
     const anchors = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href]'));
@@ -171,6 +194,17 @@ export function getChannelNameFromPage(): string | null {
   const metaChannel = document.querySelector('meta[itemprop="name"]');
   if (metaChannel instanceof HTMLMetaElement) {
     return metaChannel.content;
+  }
+
+  // Prefer owner / channel name rendered in the DOM (more reliable during SPA navigation)
+  try {
+    const ownerEl = document.querySelector('ytd-video-owner-renderer ytd-channel-name, ytd-channel-name');
+    if (ownerEl) {
+      const txt = ownerEl.textContent?.trim();
+      if (txt) return txt;
+    }
+  } catch {
+    // ignore
   }
 
   // Try from ytInitialData

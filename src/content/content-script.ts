@@ -13,6 +13,7 @@ import {
 } from './youtube-detector.js';
 import { showWarningBanner } from './warning-banner.js';
 import { BLACKLIST_RAW_URL } from '../shared/config.js';
+import { STORAGE_KEYS } from '../shared/types.js';
 
 declare global {
   interface Window {
@@ -201,13 +202,28 @@ async function checkChannel(channelInfo: {
 
   // Fallback: try to fetch the raw blacklist directly from GitHub (best-effort)
   try {
+    // First try a local cached blacklist (avoid messaging the service worker)
+    try {
+      const cached = await getCachedSnapshotFromStorage();
+      if (cached) {
+        console.debug('APE debug: using cached blacklist from storage');
+        const res = checkSnapshotForMatch(cached, channelInfo);
+        if (res?.isBlacklisted) {
+          await showWarningBanner(res.channelName || channelInfo.channelName || 'Unknown Channel', res.reason);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to read cached blacklist from storage:', err);
+    }
+
     if (BLACKLIST_RAW_URL && !BLACKLIST_RAW_URL.includes('USERNAME')) {
       console.debug('APE debug: falling back to direct fetch from', BLACKLIST_RAW_URL);
       const fb = await tryFallbackCheck(channelInfo);
       if (fb?.isBlacklisted) {
         await showWarningBanner(fb.channelName || channelInfo.channelName || 'Unknown Channel', fb.reason);
+        return;
       }
-      return;
     }
   } catch (err) {
     console.warn('Fallback direct fetch failed:', err);
@@ -275,4 +291,51 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', setupNavigationObserver);
 } else {
   setupNavigationObserver();
+}
+
+// Read the cached blacklist snapshot directly from chrome.storage.local
+async function getCachedSnapshotFromStorage(): Promise<any | null> {
+  try {
+    const result = await chrome.storage.local.get(STORAGE_KEYS.BLACKLIST);
+    return result[STORAGE_KEYS.BLACKLIST] ?? null;
+  } catch (err) {
+    console.warn('getCachedSnapshotFromStorage failed:', err);
+    return null;
+  }
+}
+
+// Check an in-memory snapshot for a match (same logic as tryFallbackCheck)
+function checkSnapshotForMatch(snapshot: any, channelInfo: { channelId?: string; channelName?: string; handle?: string; customUrl?: string; }): ChannelCheckResponse | null {
+  try {
+    const entries = Array.isArray(snapshot?.entries) ? snapshot.entries : [];
+    const normalize = (s: any) => (typeof s === 'string' ? s.trim().toLowerCase() : '');
+
+    for (const entry of entries) {
+      if (!entry) continue;
+      if (channelInfo.channelId && entry.channelId === channelInfo.channelId) {
+        return { isBlacklisted: true, channelName: entry.channelName, reason: entry.reason };
+      }
+      if (channelInfo.handle && Array.isArray(entry.handles) && entry.handles.includes(channelInfo.handle)) {
+        return { isBlacklisted: true, channelName: entry.channelName, reason: entry.reason };
+      }
+      if (channelInfo.customUrl && entry.customUrl === channelInfo.customUrl) {
+        return { isBlacklisted: true, channelName: entry.channelName, reason: entry.reason };
+      }
+      if (channelInfo.channelName && normalize(entry.channelName) === normalize(channelInfo.channelName)) {
+        return { isBlacklisted: true, channelName: entry.channelName, reason: entry.reason };
+      }
+      if (channelInfo.channelName && Array.isArray(entry.historicNames)) {
+        for (const hn of entry.historicNames) {
+          if (normalize(hn) === normalize(channelInfo.channelName)) {
+            return { isBlacklisted: true, channelName: entry.channelName, reason: entry.reason };
+          }
+        }
+      }
+    }
+
+    return { isBlacklisted: false };
+  } catch (err) {
+    console.warn('checkSnapshotForMatch failed:', err);
+    return null;
+  }
 }

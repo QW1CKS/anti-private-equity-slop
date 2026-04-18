@@ -8,7 +8,7 @@
     "alarms"
   ],
   "host_permissions": [
-    "https://www.youtube.com/*",
+    "https://*.youtube.com/*",
     "https://*.privateequityblacklist.com/*",
     "https://raw.githubusercontent.com/*"
   ],
@@ -18,7 +18,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://www.youtube.com/*"],
+      "matches": ["https://*.youtube.com/*"],
       "js": ["content/content-script.js"],
       "run_at": "document_idle"
     }
