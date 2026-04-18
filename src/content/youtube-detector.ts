@@ -25,6 +25,32 @@ const YOUTUBE_PATTERNS = {
   LIVE: /^\/live\/([^/?#]+)/,
 };
 
+// Clean noisy channel name text (remove subscriber counts and pick first meaningful line)
+function cleanChannelName(raw?: string): string | undefined {
+  if (!raw) return undefined;
+  const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(l => l && !/subscribers/i.test(l));
+  if (lines.length) return lines[0];
+  const s = raw.replace(/\s+/g, ' ').trim();
+  return s || undefined;
+}
+
+// Generic UI labels that should be ignored as channel names
+function isGenericLabel(s?: string): boolean {
+  if (!s) return true;
+  const raw = s.trim();
+  if (!raw) return true;
+  const t = raw.toLowerCase();
+  const stop = [
+    'your videos', 'videos', 'home', 'playlists', 'channels', 'community', 'shorts',
+    'about', 'featured channels', 'discussion'
+  ];
+  if (stop.includes(t)) return true;
+  if (t.length < 2) return true;
+  if (isLikelyPlaceholder(raw)) return true;
+  if (!/[a-zA-Z\p{L}]/u.test(t)) return true;
+  return false;
+}
+
 // Heuristic to detect placeholder or encoded gibberish strings that are not real channel names
 function isLikelyPlaceholder(raw?: string): boolean {
   if (!raw) return false;
@@ -188,12 +214,23 @@ export function getChannelIdFromPage(): string | null {
 
   // Fallback: scan anchors in the page for a channel link or handle
   try {
-    const anchors = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href]'));
+    // Prefer anchors within the owner/meta area to avoid picking unrelated nav links
+    const prioritized = Array.from(document.querySelectorAll<HTMLAnchorElement>('#meta-contents a[href], ytd-video-owner-renderer a[href], ytd-channel-name a[href]'));
+    const anchors = prioritized.length ? prioritized : Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href]'));
     for (const a of anchors) {
       const href = a.getAttribute('href') || '';
       if (!href) continue;
       // skip javascript: or fragment links
       if (href.startsWith('javascript:') || href.startsWith('#')) continue;
+
+      // Prefer visible anchors unless they are from the prioritized set
+      try {
+        const rects = a.getClientRects();
+        const visible = rects && rects.length > 0 && Array.from(rects).some(r => r.width > 0 && r.height > 0);
+        if (!visible && !prioritized.includes(a)) continue;
+      } catch {
+        // ignore getClientRects errors
+      }
 
       try {
         const u = new URL(href, location.origin);
@@ -446,31 +483,7 @@ export function getChannelInfoFromPage(): { channelId?: string; channelName?: st
   let ownerAnchorHref: string | undefined;
   let ownerAnchorText: string | undefined;
   try {
-    // Helper to clean noisy channel name text (remove subscriber counts and collapse whitespace)
-    function cleanChannelName(raw?: string): string | undefined {
-      if (!raw) return undefined;
-      // Split into lines, trim, and filter out empty and subscriber lines
-      const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(l => l && !/subscribers/i.test(l));
-      // Use the first non-empty, non-subscriber line
-      if (lines.length) return lines[0];
-      return undefined;
-    }
-
-    const isGenericLabel = (s?: string) => {
-      if (!s) return true;
-      const raw = s.trim();
-      const t = raw.toLowerCase();
-      if (!t) return true;
-      const stop = [
-        'your videos', 'videos', 'home', 'playlists', 'channels', 'community', 'shorts',
-        'about', 'featured channels', 'discussion'
-      ];
-      if (stop.includes(t)) return true;
-      if (t.length < 2) return true;
-      if (isLikelyPlaceholder(raw)) return true;
-      if (!/[a-zA-Z\p{L}]/u.test(t)) return true;
-      return false;
-    };
+    // Use top-level helpers `cleanChannelName` and `isGenericLabel`
 
     // Prefer the owner renderer inside the #meta-contents area (watch page primary info)
     const ownerRenderer = document.querySelector<HTMLElement>('#meta-contents ytd-video-owner-renderer')
@@ -554,17 +567,29 @@ export function getChannelInfoFromPage(): { channelId?: string; channelName?: st
 
   // 4) Fallback: scan anchors for first channel link (less reliable)
   try {
-    const anchors = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href]'));
+    // Prefer anchors within the owner/meta area first
+    const prioritized = Array.from(document.querySelectorAll<HTMLAnchorElement>('#meta-contents a[href], ytd-video-owner-renderer a[href], ytd-channel-name a[href]'));
+    const anchors = prioritized.length ? prioritized : Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href]'));
     for (const a of anchors) {
       const href = a.getAttribute('href') || '';
       if (!href) continue;
       if (href.startsWith('javascript:') || href.startsWith('#')) continue;
+
+      try {
+        const rects = a.getClientRects();
+        const visible = rects && rects.length > 0 && Array.from(rects).some(r => r.width > 0 && r.height > 0);
+        if (!visible && !prioritized.includes(a)) continue;
+      } catch {
+        // ignore getClientRects errors
+      }
+
       try {
         const u = new URL(href, location.origin);
         const cid = extractChannelIdFromUrl(u.pathname);
         if (cid && cid.startsWith('UC')) {
-          const cname = a.textContent?.trim() || undefined;
-          return { channelId: cid, channelName: cname };
+          const raw = a.textContent || '';
+          const cname = cleanChannelName(raw) || a.textContent?.trim() || undefined;
+          if (!isGenericLabel(cname)) return { channelId: cid, channelName: cname } as any;
         }
       } catch {
         // ignore invalid URLs

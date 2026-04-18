@@ -126,6 +126,22 @@ async function tryExtractAndCheck(triesLeft = 6): Promise<void> {
   const channelInfo = extractChannelInfo();
   console.debug('APE debug: extracted channelInfo', channelInfo, 'triesLeft', triesLeft);
   if (channelInfo) {
+    // If the extracted info looks like a placeholder or missing owner handle/name,
+    // wait briefly for the owner element to become visible before checking.
+    const looksLikePlaceholder = (channelInfo.channelName && (channelInfo.channelName.toLowerCase().includes('your videos') || channelInfo.channelName.toUpperCase() === channelInfo.channelName && channelInfo.channelName.includes('_')));
+    if (looksLikePlaceholder || (!channelInfo.handle && !channelInfo.channelName)) {
+      const waited = await waitForOwnerAnchor(1500);
+      if (waited) {
+        // Re-extract after waiting
+        const updated = extractChannelInfo();
+        console.debug('APE debug: re-extracted channelInfo after wait', updated);
+        if (updated) {
+          await checkChannel(updated);
+          return;
+        }
+      }
+    }
+
     await checkChannel(channelInfo);
     return;
   }
@@ -352,6 +368,31 @@ async function tryFallbackCheck(channelInfo: {
 // Utility function
 function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Wait for the owner anchor to be present and visible within the meta/owner area
+function waitForOwnerAnchor(timeoutMs = 1500): Promise<boolean> {
+  const start = Date.now();
+  return new Promise(resolve => {
+    const check = () => {
+      try {
+        const sel = '#meta-contents ytd-video-owner-renderer a[href^="/@"], #meta-contents ytd-video-owner-renderer a[href*="/channel/"], ytd-video-owner-renderer a[href^="/@"], ytd-video-owner-renderer a[href*="/channel/"]';
+        const el = document.querySelector<HTMLAnchorElement>(sel);
+        if (el) {
+          try {
+            const rects = el.getClientRects();
+            const visible = rects && rects.length > 0 && Array.from(rects).some(r => r.width > 0 && r.height > 0);
+            if (visible) return resolve(true);
+          } catch { return resolve(true); }
+        }
+      } catch {
+        // ignore
+      }
+      if (Date.now() - start > timeoutMs) return resolve(false);
+      setTimeout(check, 100);
+    };
+    check();
+  });
 }
 
 // Initialize when DOM is ready
