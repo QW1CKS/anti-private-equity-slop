@@ -1,93 +1,119 @@
 # Anti Private Equity Slop
 
-A Chrome extension that warns YouTube users about channels owned by private equity firms.
+A privacy-first Chrome extension that warns YouTube viewers when a channel is owned or controlled by private equity interests.
 
-## Features
+This repository contains the extension source (TypeScript, Manifest V3), build tooling, unit tests, and the local blacklist snapshot used for matching.
 
-- **Privacy-First**: All matching happens locally in your browser. No browsing data is sent to any server.
-- **Automatic Detection**: Automatically detects channel information on YouTube watch and channel pages.
-- **Warning Banner**: Non-intrusive banner alerts you when viewing private equity-owned channels.
-- **Time-Bounded Dismissal**: Dismiss warnings for 4 hours at a time.
-- **Local Blacklist**: Cached blacklist with periodic updates.
+## Table of contents
 
-## Installation
+- Quick start
+- Installation (from source)
+- Development & testing
+- Loading the extension in Chrome / Edge
+- Architecture overview
+- Blacklist snapshot format & development tips
+- Privacy
+- Contributing
+- License
 
-### From Source
+## Quick start
 
-1. Clone this repository
-2. Run `npm install`
-3. Run `npm run build`
-4. Open Chrome and navigate to `chrome://extensions/`
-5. Enable "Developer mode" (top right)
-6. Click "Load unpacked" and select the `dist` folder
+Prerequisites: Node.js and npm (LTS recommended).
 
-### From Chrome Web Store
-
-Coming soon!
-
-## Development
+Clone the repo, install dependencies, and build:
 
 ```bash
-# Install dependencies
+git clone https://github.com/your-org/anti-private-equity-slop.git
+cd anti-private-equity-slop
 npm install
-
-# Build extension
 npm run build
-
-# Run tests
-npm test
-
-# Lint
-npm run lint
 ```
 
-## Project Structure
+The build produces a browser-ready `dist/` directory you can load into Chrome or Edge (instructions below).
 
-```
-src/
-├── background/       # Service worker
-│   ├── service-worker.ts
-│   └── blacklist-sync.ts
-├── content/          # Content scripts
-│   ├── content-script.ts
-│   ├── youtube-detector.ts
-│   ├── channel-normalize.ts
-│   ├── warning-banner.ts
-│   └── i18n.ts
-├── shared/           # Shared types and logic
-│   ├── types.ts
-│   ├── blacklist-schema.ts
-│   └── matcher.ts
-└── options/          # Options page
-    └── details.html
+## Installation (from source)
+
+1. Run `npm install` to install dev dependencies.
+2. Build the extension with `npm run build`.
+3. Open your browser and load the unpacked extension (see next section).
+
+Note: The repository includes `package.json` scripts used for building, bundling content, linting and testing. Common scripts:
+
+```bash
+npm run build      # transpile, copy assets, bundle content
+npm run dev        # tsc --watch for iterative development
+npm test           # run unit tests (jest)
+npm run lint       # run ESLint on source files
+npm run package    # build and create extension.zip (Windows PowerShell zip)
 ```
 
-## Blacklist API
+## Loading the extension in Chrome / Edge
 
-The extension expects a blacklist API at `https://api.privateequityblacklist.com/v1/`. 
+1. Open `chrome://extensions/` (or `edge://extensions/`).
+2. Enable **Developer mode** (toggle, top-right).
+3. Click **Load unpacked** and choose the `dist/` folder produced by `npm run build`.
 
-For development, you can mock this by manually populating `chrome.storage.local` with a blacklist snapshot:
+This installs the extension locally for testing. To create a distributable ZIP, run `npm run package`.
+
+## Development & testing
+
+- Use `npm run dev` while editing TypeScript to compile incrementally.
+- Run `npm test` to execute unit tests (Jest + ts-jest). Tests live under `tests/unit/`.
+- Use `npm run lint` to check code style and catch common problems.
+
+If you need to iterate on UI assets or options, rebuild and reload the unpacked extension in the browser.
+
+## Architecture overview
+
+The source lives in `src/` and is organized by runtime role:
+
+- `src/background/` — MV3 service worker. Handles blacklist sync, signature verification, and matching logic.
+- `src/content/` — Content scripts that run on YouTube pages: detect channel identity, normalize identifiers, and show the warning banner.
+- `src/shared/` — Shared types, schemas, and the matching implementation used by both background and content logic.
+- `src/options/` — Minimal options UI and static assets.
+- `tests/` — Unit tests for core pieces like the matcher and normalization.
+
+Build output is emitted to `dist/` (loaded into the browser during manual testing).
+
+## Blacklist snapshot & development tips
+
+The extension expects a signed snapshot (JSON) of the blacklist for client-side matching. In production this is fetched from the configured API endpoint, but for local development you can mock or set the snapshot directly in `chrome.storage.local`.
+
+Example snippet to populate a dev snapshot in the browser console:
 
 ```javascript
 chrome.storage.local.set({
   blacklist: {
     version: "1.0.0",
-    updatedAt: "2024-01-01T00:00:00Z",
-    signature: "sig123",
+    updatedAt: new Date().toISOString(),
+    signature: "dev-signature",
     entries: [
-      { channelId: "UC...", channelName: "Channel Name", addedAt: "2024-01-01T00:00:00Z" }
+      {
+        channelId: "UCxxxxxxxxxxxxxxxxxxxxxx",
+        channelName: "Example Channel",
+        addedAt: new Date().toISOString(),
+        reason: "Test entry"
+      }
     ]
   }
 });
 ```
 
+See `src/shared/blacklist-schema.ts` for the exact entry shape and validation rules.
+
 ## Privacy
 
-- No browsing data leaves your device
-- Channel matching happens entirely in the service worker
-- Blacklist updates are the only network request (read-only, anonymous)
-- No cookies, no tracking, no analytics
+- Matching is performed locally in the browser; no browsing history or page content is shipped to external servers.
+- The only network requests performed by the extension are read-only fetches of the blacklist snapshot (if enabled).
+- The project purposefully avoids analytics and remote telemetry.
+
+## Contributing
+
+We welcome contributions. Please read `CONTRIBUTING.md` for the process of adding blacklist entries, running the helper script, and submitting PRs. Keep changes scoped and include tests for any behavior changes.
 
 ## License
 
-MIT
+This project is released under the MIT License.
+
+---
+If you'd like, I can also add a short changelog template, a development checklist, or polish the `package.json` scripts to better match CI workflows.
