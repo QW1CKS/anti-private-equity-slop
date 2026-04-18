@@ -348,3 +348,70 @@ export function isChannelPage(): boolean {
          YOUTUBE_PATTERNS.HANDLE.test(url.pathname) ||
          YOUTUBE_PATTERNS.CUSTOM_URL.test(url.pathname);
 }
+
+// Get both channelId and channelName from page in a single pass to avoid mismatches
+export function getChannelInfoFromPage(): { channelId?: string; channelName?: string } | null {
+  // 1) Meta tags
+  try {
+    const metaChannel = document.querySelector('meta[itemprop="channelId"]') as HTMLMetaElement | null;
+    const metaName = document.querySelector('meta[itemprop="name"]') as HTMLMetaElement | null;
+    if (metaChannel && metaChannel.content) {
+      return { channelId: metaChannel.content, channelName: metaName?.content };
+    }
+  } catch {
+    // ignore
+  }
+
+  // 2) Owner-renderer link (most reliable on watch pages)
+  try {
+    const ownerAnchor = document.querySelector<HTMLAnchorElement>('ytd-video-owner-renderer a[href*="/channel/"]')
+      || document.querySelector<HTMLAnchorElement>('#meta-contents ytd-channel-name a[href*="/channel/"]')
+      || document.querySelector<HTMLAnchorElement>('ytd-channel-name a[href*="/channel/"]')
+      || document.querySelector<HTMLAnchorElement>('a[href*="/channel/"]');
+
+    if (ownerAnchor && ownerAnchor.getAttribute('href')) {
+      try {
+        const u = new URL(ownerAnchor.href, location.origin);
+        const cid = extractChannelIdFromUrl(u.pathname);
+        const cname = ownerAnchor.textContent?.trim() || undefined;
+        if (cid) return { channelId: cid, channelName: cname };
+      } catch {
+        // ignore
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  // 3) Try ytInitialData paths
+  const ytInitialData = getYtInitialData();
+  if (ytInitialData) {
+    const channelId = extractChannelIdFromYtInitialData(ytInitialData);
+    const channelName = extractChannelNameFromYtInitialData(ytInitialData);
+    if (channelId || channelName) return { channelId: channelId || undefined, channelName: channelName || undefined };
+  }
+
+  // 4) Fallback: scan anchors for first channel link (less reliable)
+  try {
+    const anchors = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href]'));
+    for (const a of anchors) {
+      const href = a.getAttribute('href') || '';
+      if (!href) continue;
+      if (href.startsWith('javascript:') || href.startsWith('#')) continue;
+      try {
+        const u = new URL(href, location.origin);
+        const cid = extractChannelIdFromUrl(u.pathname);
+        if (cid && cid.startsWith('UC')) {
+          const cname = a.textContent?.trim() || undefined;
+          return { channelId: cid, channelName: cname };
+        }
+      } catch {
+        // ignore invalid URLs
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  return null;
+}

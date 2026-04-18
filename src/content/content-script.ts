@@ -6,6 +6,7 @@
 import {
   getChannelIdFromPage,
   getChannelNameFromPage,
+  getChannelInfoFromPage,
   getChannelInfoFromUrl,
   isYouTubePage,
   isWatchPage,
@@ -146,15 +147,14 @@ function extractChannelInfo(): {
   const urlInfo = getChannelInfoFromUrl();
   
   // Then get additional info from page DOM
-  const pageChannelId = getChannelIdFromPage();
-  const pageChannelName = getChannelNameFromPage();
+    const pageInfo = getChannelInfoFromPage();
 
   // Combine all sources
-  const result = {
-    channelId: urlInfo?.channelId || pageChannelId || undefined,
-    channelName: pageChannelName || undefined,
-    handle: urlInfo?.handle,
-    customUrl: urlInfo?.customUrl,
+    const result = {
+      channelId: urlInfo?.channelId || pageInfo?.channelId || void 0,
+      channelName: pageInfo?.channelName || void 0,
+      handle: urlInfo?.handle,
+      customUrl: urlInfo?.customUrl
   };
 
   // Need at least one identifier to check
@@ -172,6 +172,21 @@ async function checkChannel(channelInfo: {
   handle?: string;
   customUrl?: string;
 }): Promise<void> {
+  // First, try a local cached blacklist (fast path, avoids sending messages to the SW)
+  try {
+    const cached = await getCachedSnapshotFromStorage();
+    if (cached) {
+      console.debug('APE debug: using cached blacklist from storage (fast path)');
+      const cachedRes = checkSnapshotForMatch(cached, channelInfo);
+      if (cachedRes?.isBlacklisted) {
+        await showWarningBanner(cachedRes.channelName || channelInfo.channelName || 'Unknown Channel', cachedRes.reason);
+        return;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to read cached blacklist from storage (fast path):', err);
+  }
+
   // Try to send to service worker with a couple retries.
   const message: ChannelCheckMessage = {
     type: 'CHECK_CHANNEL',
@@ -188,13 +203,14 @@ async function checkChannel(channelInfo: {
       const response = await chrome.runtime.sendMessage(message) as ChannelCheckResponse;
       console.debug('APE debug: CHECK_CHANNEL response', response);
       if (response?.isBlacklisted) {
-        await showWarningBanner(response.channelName || 'Unknown Channel', response.reason);
+        await showWarningBanner(response.channelName || channelInfo.channelName || 'Unknown Channel', response.reason);
       }
       return;
     } catch (error) {
       console.warn('CHECK_CHANNEL attempt', attempts, 'failed:', error);
       // If this was the last attempt, break and try fallback
-      if (attempts >= maxAttempts) break;
+      if (attempts >= maxAttempts)
+        break;
       // small backoff
       await delay(250 * attempts);
     }

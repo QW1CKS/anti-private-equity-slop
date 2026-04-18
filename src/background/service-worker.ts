@@ -6,6 +6,23 @@
 import { syncBlacklist, getBlacklist } from './blacklist-sync.js';
 import { isBlacklisted, invalidateCache } from '../shared/matcher.js';
 
+// Log on startup to help debugging service worker lifecycle
+console.log('APE service worker started');
+// On startup, ensure we have a cached blacklist; if not, attempt one-shot sync.
+(async function ensureInitialSync() {
+  try {
+    const cached = await getBlacklist();
+    if (!cached || !Array.isArray(cached.entries) || cached.entries.length === 0) {
+      console.log('No cached blacklist found on SW start — running initial sync');
+      await syncBlacklist();
+    } else {
+      console.debug('Cached blacklist present, version:', cached.version);
+    }
+  } catch (err) {
+    console.warn('Initial sync check failed:', err);
+  }
+})();
+
 // Types for message passing
 export interface Message {
   type: string;
