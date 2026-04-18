@@ -49,23 +49,38 @@ export interface ChannelCheckMessage extends Message {
 // Message handler
 chrome.runtime.onMessage.addListener(
   (message: Message, sender: any, sendResponse: (response?: unknown) => void) => {
-    handleMessage(message).then((res) => sendResponse(res));
+    // Keep the async message channel open and ensure any handler errors
+    // are returned as a safe service-unavailable response instead of
+    // letting an exception crash the service worker.
+    handleMessage(message)
+      .then((res) => sendResponse(res))
+      .catch((err) => {
+        console.error('Service worker message handler failed:', err);
+        sendResponse({ success: false, error: 'service-unavailable', details: (err && (err as any).message) || String(err) });
+      });
     return true; // Keep channel open for async response
   }
 );
 
 async function handleMessage(message: Message): Promise<unknown> {
-  switch (message.type) {
-    case 'BLACKLIST_SYNC':
-      return await handleSyncBlacklist((message as BlacklistSyncMessage).payload?.force);
-    case 'CHECK_CHANNEL':
-      return await handleCheckChannel(message as ChannelCheckMessage);
-    case 'OPEN_DETAILS_PAGE':
-      await chrome.runtime.openOptionsPage();
-      return { success: true };
-    default:
-      console.warn('Unknown message type:', message.type);
-      return { success: false, error: 'Unknown message type' };
+  try {
+    switch (message.type) {
+      case 'PING':
+        return { ok: true, ts: Date.now() };
+      case 'BLACKLIST_SYNC':
+        return await handleSyncBlacklist((message as BlacklistSyncMessage).payload?.force);
+      case 'CHECK_CHANNEL':
+        return await handleCheckChannel(message as ChannelCheckMessage);
+      case 'OPEN_DETAILS_PAGE':
+        await chrome.runtime.openOptionsPage();
+        return { success: true };
+      default:
+        console.warn('Unknown message type:', message.type);
+        return { success: false, error: 'Unknown message type' };
+    }
+  } catch (err) {
+    console.error('Error in handleMessage:', err);
+    return { success: false, error: 'service-unavailable', details: (err && (err as any).message) || String(err) };
   }
 }
 
