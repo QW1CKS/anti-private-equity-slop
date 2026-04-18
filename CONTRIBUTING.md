@@ -1,12 +1,18 @@
+---
 # How to contribute channels to the blacklist
 
-Thanks — this project accepts PRs that add channels to the shared blacklist. The easiest way to prepare a correct entry is to run the helper below in your browser console while on a YouTube **channel page** or **any video from that channel**.
+Thank you for helping keep the blacklist current! This project accepts PRs that add channels to the shared blacklist. The easiest way to prepare a correct entry is to run the helper below in your browser console while on a YouTube **channel page** or **any video from that channel**.
 
-Use the script exactly as shown: open the channel page (or open one of their videos), open Developer Tools → Console, paste the snippet and press Enter. The script will attempt to detect the canonical channel ID (the `UC...` ID), fill `channelName`, add any `handles` it can find, set `addedAt` to now, and copy a ready-to-paste JSON object to your clipboard.
+**How to use the helper:**
+1. Open the channel page (or any video from that channel).
+2. Open Developer Tools → Console.
+3. Paste the script below and press Enter.
+4. The script will output a ready-to-paste JSON object and copy it to your clipboard.
 
-Important: Do NOT modify the top-level `version`, `updatedAt`, or `signature` fields in [blacklist.json](blacklist.json). Only append a new object to the `entries` array and provide a clear `reason`.
-
-Note: the `channelId` (the canonical `UC...` id) is optional — if the helper cannot determine it, the generated entry will omit `channelId`. Include a link to the channel in your PR description so maintainers can resolve the canonical ID before merging.
+**Important:**
+- Do **not** modify the top-level `version`, `updatedAt`, or `signature` fields in [blacklist.json](blacklist.json).
+- Only append a new object to the `entries` array and provide a clear `reason`.
+- The `channelId` (the canonical `UC...` id) is optional — if the helper cannot determine it, the generated entry will omit `channelId`. Include a link to the channel in your PR description so maintainers can resolve the canonical ID before merging.
 
 ---
 
@@ -97,3 +103,27 @@ Note: the `channelId` (the canonical `UC...` id) is optional — if the helper c
 ---
 
 ## What to paste into [blacklist.json](blacklist.json)
+
+Open `blacklist.json` and append the generated object to the `entries` array. Example entry format (the helper produces the same shape):
+
+```json
+{
+  "channelName": "Example Channel",
+  "handles": ["ExampleHandle"],
+  "addedAt": "2026-04-18T00:00:00.000Z",
+  "reason": "Short explanation of why this channel should be blacklisted",
+  "channelId": "UCxxxxxxxxxxxxxxxxxxxxxx" // optional
+}
+```
+
+Do not edit `version`, `updatedAt`, or `signature` in the snapshot — only add entries. The maintainers will update snapshot metadata and signature when merging.
+
+## PR checklist
+
+- Create a branch named like `blacklist/add-<channelId-or-handle>`
+- Add the new entry to the `entries` array in `blacklist.json` and commit only that change
+- In your PR description, include: channel name, channelId (if available), a short `reason`, and a link to the channel
+- Do not modify the top-level `version`, `updatedAt`, or `signature` fields
+- Wait for maintainers to run the signature update step and merge
+
+---
