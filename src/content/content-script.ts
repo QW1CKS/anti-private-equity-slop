@@ -20,7 +20,12 @@ declare global {
 }
 
 // Expose a dev helper so you can invoke the banner from the content-script console
-try { window.__APE_showWarningBanner = showWarningBanner; } catch (e) {}
+try {
+  const w = window as unknown as Record<string, unknown>;
+  w['__APE_showWarningBanner'] = showWarningBanner as unknown;
+} catch (e) {
+  void e;
+}
 // Types for message passing
 interface ChannelCheckMessage {
   type: 'CHECK_CHANNEL';
@@ -46,17 +51,16 @@ function setupNavigationObserver(): void {
 
   // Create a robust "locationchange" signal by wrapping History API methods
   (function ensureLocationChangeEvent() {
-    const _push = (history as any).pushState;
-    const _replace = (history as any).replaceState;
-    (history as any).pushState = function (...args: any[]) {
-      const res = _push.apply(this, args);
+    type PushStateFn = (data?: unknown, unused?: string, url?: string | URL | null) => void;
+    const _push = history.pushState as unknown as PushStateFn;
+    const _replace = history.replaceState as unknown as PushStateFn;
+    (history as unknown as { pushState: PushStateFn }).pushState = function (data?: unknown, unused?: string, url?: string | URL | null) {
+      _push.call(this, data, unused, url);
       window.dispatchEvent(new Event('locationchange'));
-      return res;
     };
-    (history as any).replaceState = function (...args: any[]) {
-      const res = _replace.apply(this, args);
+    (history as unknown as { replaceState: PushStateFn }).replaceState = function (data?: unknown, unused?: string, url?: string | URL | null) {
+      _replace.call(this, data, unused, url);
       window.dispatchEvent(new Event('locationchange'));
-      return res;
     };
     window.addEventListener('popstate', () => window.dispatchEvent(new Event('locationchange')));
   })();

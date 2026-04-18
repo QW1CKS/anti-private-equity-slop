@@ -43,7 +43,7 @@ function isISODateString(v: unknown): boolean {
 // Validation functions (lightweight and permissive)
 export function isValidChannelEntry(entry: unknown): entry is ChannelEntry {
   if (typeof entry !== 'object' || entry === null) return false;
-  const e = entry as any;
+  const e = entry as Record<string, unknown>;
   if (!isNonEmptyString(e.channelId)) return false;
   if (!isNonEmptyString(e.channelName)) return false;
   if (!isISODateString(e.addedAt)) return false;
@@ -56,7 +56,7 @@ export function isValidChannelEntry(entry: unknown): entry is ChannelEntry {
 
 export function isValidSnapshot(data: unknown): data is BlacklistSnapshot {
   if (typeof data !== 'object' || data === null) return false;
-  const d = data as any;
+  const d = data as Record<string, unknown>;
   if (!isNonEmptyString(d.version)) return false;
   if (!isISODateString(d.updatedAt)) return false;
   if (!isNonEmptyString(d.signature)) return false;
@@ -69,7 +69,7 @@ export function isValidSnapshot(data: unknown): data is BlacklistSnapshot {
 
 export function isValidManifest(data: unknown): data is Manifest {
   if (typeof data !== 'object' || data === null) return false;
-  const m = data as any;
+  const m = data as Record<string, unknown>;
   if (!isNonEmptyString(m.version)) return false;
   if (!isISODateString(m.updatedAt)) return false;
   if (typeof m.totalChannels !== 'number' || !Number.isInteger(m.totalChannels) || m.totalChannels < 0)
