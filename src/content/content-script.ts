@@ -12,6 +12,7 @@ import {
   isChannelPage,
 } from './youtube-detector.js';
 import { showWarningBanner } from './warning-banner.js';
+import { BLACKLIST_RAW_URL } from '../shared/config.js';
 
 declare global {
   interface Window {
@@ -170,21 +171,97 @@ async function checkChannel(channelInfo: {
   handle?: string;
   customUrl?: string;
 }): Promise<void> {
-  try {
-    const message: ChannelCheckMessage = {
-      type: 'CHECK_CHANNEL',
-      payload: channelInfo,
-    };
+  // Try to send to service worker with a couple retries.
+  const message: ChannelCheckMessage = {
+    type: 'CHECK_CHANNEL',
+    payload: channelInfo,
+  };
 
-    console.debug('APE debug: sending CHECK_CHANNEL', message);
-    const response = await chrome.runtime.sendMessage(message) as ChannelCheckResponse;
-    console.debug('APE debug: CHECK_CHANNEL response', response);
+  console.debug('APE debug: sending CHECK_CHANNEL', message);
 
-    if (response?.isBlacklisted) {
-      await showWarningBanner(response.channelName || 'Unknown Channel', response.reason);
+  let attempts = 0;
+  const maxAttempts = 3;
+  while (attempts < maxAttempts) {
+    attempts++;
+    try {
+      const response = await chrome.runtime.sendMessage(message) as ChannelCheckResponse;
+      console.debug('APE debug: CHECK_CHANNEL response', response);
+      if (response?.isBlacklisted) {
+        await showWarningBanner(response.channelName || 'Unknown Channel', response.reason);
+      }
+      return;
+    } catch (error) {
+      console.warn('CHECK_CHANNEL attempt', attempts, 'failed:', error);
+      // If this was the last attempt, break and try fallback
+      if (attempts >= maxAttempts) break;
+      // small backoff
+      await delay(250 * attempts);
     }
-  } catch (error) {
-    console.error('Failed to check channel:', error);
+  }
+
+  // Fallback: try to fetch the raw blacklist directly from GitHub (best-effort)
+  try {
+    if (BLACKLIST_RAW_URL && !BLACKLIST_RAW_URL.includes('USERNAME')) {
+      console.debug('APE debug: falling back to direct fetch from', BLACKLIST_RAW_URL);
+      const fb = await tryFallbackCheck(channelInfo);
+      if (fb?.isBlacklisted) {
+        await showWarningBanner(fb.channelName || channelInfo.channelName || 'Unknown Channel', fb.reason);
+      }
+      return;
+    }
+  } catch (err) {
+    console.warn('Fallback direct fetch failed:', err);
+  }
+
+  console.error('Failed to check channel: service worker unavailable and fallback failed');
+}
+
+async function tryFallbackCheck(channelInfo: {
+  channelId?: string;
+  channelName?: string;
+  handle?: string;
+  customUrl?: string;
+}): Promise<ChannelCheckResponse> {
+  try {
+    const res = await fetch(BLACKLIST_RAW_URL, { cache: 'no-store' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const snapshot = await res.json();
+    const entries = Array.isArray(snapshot?.entries) ? snapshot.entries : [];
+
+    const normalize = (s: any) => (typeof s === 'string' ? s.trim().toLowerCase() : '');
+
+    for (const entry of entries) {
+      if (!entry) continue;
+      // match by channelId
+      if (channelInfo.channelId && entry.channelId === channelInfo.channelId) {
+        return { isBlacklisted: true, channelName: entry.channelName, reason: entry.reason };
+      }
+      // match by handle
+      if (channelInfo.handle && Array.isArray(entry.handles) && entry.handles.includes(channelInfo.handle)) {
+        return { isBlacklisted: true, channelName: entry.channelName, reason: entry.reason };
+      }
+      // match by customUrl
+      if (channelInfo.customUrl && entry.customUrl === channelInfo.customUrl) {
+        return { isBlacklisted: true, channelName: entry.channelName, reason: entry.reason };
+      }
+      // match by channelName (case-insensitive exact)
+      if (channelInfo.channelName && normalize(entry.channelName) === normalize(channelInfo.channelName)) {
+        return { isBlacklisted: true, channelName: entry.channelName, reason: entry.reason };
+      }
+      // match historic names
+      if (channelInfo.channelName && Array.isArray(entry.historicNames)) {
+        for (const hn of entry.historicNames) {
+          if (normalize(hn) === normalize(channelInfo.channelName)) {
+            return { isBlacklisted: true, channelName: entry.channelName, reason: entry.reason };
+          }
+        }
+      }
+    }
+
+    return { isBlacklisted: false };
+  } catch (err) {
+    console.warn('tryFallbackCheck failed:', err);
+    return { isBlacklisted: false };
   }
 }
 
