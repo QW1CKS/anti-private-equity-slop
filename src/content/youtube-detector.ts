@@ -142,46 +142,7 @@ export function getChannelInfoFromUrl(): { channelId?: string; handle?: string; 
 
 // Extract channel ID from page DOM (more reliable for watch pages)
 export function getChannelIdFromPage(): string | null {
-  // Try meta tags (most reliable)
-  const metaChannel = document.querySelector('meta[itemprop="channelId"]');
-  if (metaChannel instanceof HTMLMetaElement) {
-    return metaChannel.content;
-  }
-
-  // Try JSON-LD structured data
-  const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
-  const scriptArray = Array.from(jsonLdScripts);
-  for (const script of scriptArray) {
-    try {
-      const data = JSON.parse(script.textContent || '') as Record<string, unknown>;
-      const typeKey = '@type';
-      if (data[typeKey] === 'VideoObject' && data.channelId) {
-        return data.channelId as string;
-      }
-      if (data[typeKey] === 'BreadcrumbList') {
-        const itemList = data.itemListElement as Array<Record<string, unknown>> | undefined;
-        for (const item of itemList || []) {
-          if (item.item === 'VideoObject' && item.channelId) {
-            return item.channelId as string;
-          }
-        }
-      }
-    } catch {
-      // Skip invalid JSON
-    }
-  }
-
-  // Try to find from page data
-  const ytInitialData = getYtInitialData();
-  if (ytInitialData) {
-    // Navigate the complex YouTube data structure
-    const channelId = extractChannelIdFromYtInitialData(ytInitialData);
-    if (channelId) {
-      return channelId;
-    }
-  }
-
-  // Prefer explicit owner link rendered near the video (more reliable than scanning all anchors)
+  // 1) BEST: Prefer explicit owner link rendered near the video (updates during SPA navigations)
   try {
     const ownerSelectors = [
       'ytd-video-owner-renderer a[href*="/channel/"]',
@@ -212,32 +173,75 @@ export function getChannelIdFromPage(): string | null {
     // ignore
   }
 
-  // Fallback: scan anchors in the page for a channel link or handle
+  // 2) Try meta tags (less reliable for SPA navigations)
   try {
-    // Prefer anchors within the owner/meta area to avoid picking unrelated nav links
+    const metaChannel = document.querySelector('meta[itemprop="channelId"]');
+    if (metaChannel instanceof HTMLMetaElement) {
+      return metaChannel.content;
+    }
+  } catch {
+    // ignore
+  }
+
+  // 3) Try JSON-LD structured data
+  try {
+    const jsonLdScripts = document.querySelectorAll('script[type="application/ld+json"]');
+    const scriptArray = Array.from(jsonLdScripts);
+    for (const script of scriptArray) {
+      try {
+        const data = JSON.parse(script.textContent || '') as Record<string, unknown>;
+        const typeKey = '@type';
+        if (data[typeKey] === 'VideoObject' && data.channelId) {
+          return data.channelId as string;
+        }
+        if (data[typeKey] === 'BreadcrumbList') {
+          const itemList = data.itemListElement as Array<Record<string, unknown>> | undefined;
+          for (const item of itemList || []) {
+            if (item.item === 'VideoObject' && item.channelId) {
+              return item.channelId as string;
+            }
+          }
+        }
+      } catch {
+        // Skip invalid JSON
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  // 4) Try to find from page data (ytInitialData)
+  try {
+    const ytInitialData = getYtInitialData();
+    if (ytInitialData) {
+      const channelId = extractChannelIdFromYtInitialData(ytInitialData);
+      if (channelId) return channelId;
+    }
+  } catch {
+    // ignore
+  }
+
+  // 5) Fallback: scan anchors in the page for a channel link or handle (least reliable)
+  try {
     const prioritized = Array.from(document.querySelectorAll<HTMLAnchorElement>('#meta-contents a[href], ytd-video-owner-renderer a[href], ytd-channel-name a[href]'));
     const anchors = prioritized.length ? prioritized : Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href]'));
     for (const a of anchors) {
       const href = a.getAttribute('href') || '';
       if (!href) continue;
-      // skip javascript: or fragment links
       if (href.startsWith('javascript:') || href.startsWith('#')) continue;
 
-      // Prefer visible anchors unless they are from the prioritized set
       try {
         const rects = a.getClientRects();
         const visible = rects && rects.length > 0 && Array.from(rects).some(r => r.width > 0 && r.height > 0);
         if (!visible && !prioritized.includes(a)) continue;
       } catch {
-        // ignore getClientRects errors
+        // ignore
       }
 
       try {
         const u = new URL(href, location.origin);
-        // First try channel ID
         const cid = extractChannelIdFromUrl(u.pathname);
         if (cid && cid.startsWith('UC')) return cid;
-        // Then try handle (@username)
         const handle = extractHandleFromUrl(u.pathname);
         if (handle) return handle;
       } catch {
@@ -253,13 +257,7 @@ export function getChannelIdFromPage(): string | null {
 
 // Get channel name from page
 export function getChannelNameFromPage(): string | null {
-  // Try meta tag
-  const metaChannel = document.querySelector('meta[itemprop="name"]');
-  if (metaChannel instanceof HTMLMetaElement) {
-    return metaChannel.content;
-  }
-
-  // Prefer owner / channel name rendered in the DOM (more reliable during SPA navigation)
+  // 1) Prefer owner / channel name rendered in the DOM (updates during SPA navigations)
   try {
     const ownerEl = document.querySelector('#meta-contents ytd-channel-name, ytd-video-owner-renderer ytd-channel-name, ytd-channel-name, a.yt-simple-endpoint[href^="/@"]');
     if (ownerEl) {
@@ -274,7 +272,17 @@ export function getChannelNameFromPage(): string | null {
     // ignore
   }
 
-  // Try from ytInitialData
+  // 2) Try meta tag (fallback - may be stale on SPA navigations)
+  try {
+    const metaChannel = document.querySelector('meta[itemprop="name"]');
+    if (metaChannel instanceof HTMLMetaElement) {
+      return metaChannel.content;
+    }
+  } catch {
+    // ignore
+  }
+
+  // 3) Try from ytInitialData
   const ytInitialData = getYtInitialData();
   if (ytInitialData) {
     const channelName = extractChannelNameFromYtInitialData(ytInitialData);
@@ -482,9 +490,10 @@ export function getChannelInfoFromPage(): { channelId?: string; channelName?: st
   // in the DOM (which caused 'TLDR News Global' / incorrect picks).
   let ownerAnchorHref: string | undefined;
   let ownerAnchorText: string | undefined;
+  let foundId: string | undefined;
+  let foundHandle: string | undefined;
+  let foundCustom: string | undefined;
   try {
-    // Use top-level helpers `cleanChannelName` and `isGenericLabel`
-
     // Prefer the owner renderer inside the #meta-contents area (watch page primary info)
     const ownerRenderer = document.querySelector<HTMLElement>('#meta-contents ytd-video-owner-renderer')
       || document.querySelector<HTMLElement>('ytd-video-owner-renderer')
@@ -492,44 +501,58 @@ export function getChannelInfoFromPage(): { channelId?: string; channelName?: st
       || document.querySelector<HTMLElement>('ytd-channel-name');
 
     if (ownerRenderer) {
-      let ownerAnchor: HTMLAnchorElement | null = null;
-      ownerAnchor = ownerRenderer.querySelector<HTMLAnchorElement>('a[href*="/channel/"]');
-      if (!ownerAnchor) ownerAnchor = ownerRenderer.querySelector<HTMLAnchorElement>('a[href*="/@"]');
-      if (!ownerAnchor) ownerAnchor = ownerRenderer.querySelector<HTMLAnchorElement>('ytd-channel-name a');
-      if (!ownerAnchor) ownerAnchor = ownerRenderer.querySelector<HTMLAnchorElement>('a');
-
-        if (ownerAnchor && ownerAnchor.href) {
-          ownerAnchorHref = ownerAnchor.href;
-          const text = (ownerAnchor.textContent || ownerRenderer.textContent || '').trim();
-          // Debug: log the element and text being picked up
-          console.debug('APE debug: ownerAnchor', ownerAnchor, 'text:', text);
-          const cleaned = cleanChannelName(text);
-          if (cleaned && !isGenericLabel(cleaned) && !isLikelyPlaceholder(cleaned)) ownerAnchorText = cleaned;
+      // Scan all anchors and pick the first with non-empty text and valid handle/channelId in href
+      const allAnchors = Array.from(ownerRenderer.querySelectorAll('a'));
+      for (const a of allAnchors) {
+        const text = (a.textContent || '').trim();
+        const href = a.getAttribute('href') || '';
+        if (!text) continue;
+        // Accept only anchors with /@handle or /channel/ID
+        if (!/^\/(?:@|channel\/)/.test(href)) continue;
+        // Debug: log the element, href and text being picked up
+        console.debug('APE debug: ownerAnchor', a, 'href:', href, 'text:', text);
+        ownerAnchorHref = href;
+        const cleaned = cleanChannelName(text);
+        // Try to extract id/handle/custom from this anchor
+        let cid, handle, custom;
+        try {
+          const u = new URL(href, location.origin);
+          cid = extractChannelIdFromUrl(u.pathname);
+          handle = extractHandleFromUrl(u.pathname);
+          custom = extractCustomUrlFromUrl(u.pathname);
+        } catch {}
+        if (cid) foundId = cid;
+        if (handle) foundHandle = handle;
+        if (custom) foundCustom = custom;
+        if (cleaned && !isGenericLabel(cleaned) && !isLikelyPlaceholder(cleaned)) {
+          // If we have a handle, do a basic consistency check between handle and visible name
+          if (handle) {
+            const nakedHandle = String(handle).replace(/^@/, '').toLowerCase();
+            const compactName = cleaned.replace(/\s+/g, '').toLowerCase();
+            if (compactName.includes(nakedHandle) || nakedHandle.includes(compactName)) {
+              ownerAnchorText = cleaned;
+            } else {
+              // names look inconsistent; prefer returning id/handle without trusting the visible text
+            }
+          } else {
+            ownerAnchorText = cleaned;
+          }
         }
+        // As soon as we find a valid anchor, break
+        break;
+      }
     }
   } catch {
     // ignore
   }
 
-  // If we found an owner href, try to extract identifiers from it (channelId, handle, customUrl)
-  if (ownerAnchorHref) {
-    try {
-      const u = new URL(ownerAnchorHref, location.origin);
-      const cid = extractChannelIdFromUrl(u.pathname);
-      const handle = extractHandleFromUrl(u.pathname);
-      const custom = extractCustomUrlFromUrl(u.pathname);
-
-      if (cid) {
-        return { channelId: cid, channelName: ownerAnchorText || undefined };
-      }
-
-      // Return handle/customUrl even if the visible name is not yet available
-      if (ownerAnchorText || handle || custom) {
-        return { channelName: ownerAnchorText || undefined, handle: handle || undefined, customUrl: custom || undefined } as any;
-      }
-    } catch {
-      // ignore parse errors
-    }
+  // Only return channelName if paired with a valid id/handle/custom
+  if ((foundId || foundHandle || foundCustom) && ownerAnchorText) {
+    return { channelId: foundId, channelName: ownerAnchorText, handle: foundHandle, customUrl: foundCustom } as any;
+  }
+  // If we have a valid id/handle/custom but no name, still return the id/handle/custom
+  if (foundId || foundHandle || foundCustom) {
+    return { channelId: foundId, handle: foundHandle, customUrl: foundCustom } as any;
   }
 
   // 3) Try ytInitialData paths

@@ -4,59 +4,84 @@
 
 import { getMessage } from './i18n.js';
 
-// Banner state
-interface BannerState {
-  isVisible: boolean;
-  dismissed: boolean;
-  dismissTime?: number;
+// New banner storage shape (per-channel dismissals)
+interface BannerStorage {
+  visibleChannel?: string | null;
+  dismissedChannels?: Record<string, { dismissed: boolean; dismissTime: number }>;
 }
 
-// Storage keys for banner state
+// Storage key
 const BANNER_STORAGE_KEY = 'banner-state';
 
 // Default suppress duration: 4 hours
 const SUPPRESS_DURATION_MS = 4 * 60 * 60 * 1000;
 
-// Current banner element reference
 let bannerElement: HTMLElement | null = null;
+let currentChannelKey: string | undefined;
 
-// Initialize banner state from storage
-async function getBannerState(): Promise<BannerState> {
+async function getBannerStorage(): Promise<BannerStorage> {
   try {
     const result = await chrome.storage.local.get(BANNER_STORAGE_KEY);
-    const stored = result[BANNER_STORAGE_KEY] as BannerState | undefined;
-
-    if (!stored) {
-      return { isVisible: false, dismissed: false };
-    }
-
-    // Check if suppress period has expired
-    if (stored.dismissed && stored.dismissTime) {
-      if (Date.now() - stored.dismissTime > SUPPRESS_DURATION_MS) {
-        // Suppress period expired, reset state
-        try {
-          await chrome.storage.local.remove(BANNER_STORAGE_KEY);
-        } catch (err) {
-          console.warn('Failed to remove banner state (extension context?):', err);
-        }
-        return { isVisible: false, dismissed: false };
-      }
-    }
-
+    const stored = result[BANNER_STORAGE_KEY] as BannerStorage | undefined;
+    // Option B: ignore legacy global dismissal shape and return fresh object if not present
+    if (!stored || typeof stored !== 'object') return {};
     return stored;
   } catch (err) {
-    // This can happen when the extension context was reloaded/invalidated
-    console.warn('Failed to read banner state (extension context may be invalidated):', err);
-    return { isVisible: false, dismissed: false };
+    console.warn('Failed to read banner storage (extension context may be invalidated):', err);
+    return {};
   }
 }
 
-// Save banner state to storage
-async function saveBannerState(state: BannerState): Promise<void> {
+async function saveBannerStorage(storage: BannerStorage): Promise<void> {
   try {
-    await chrome.storage.local.set({ [BANNER_STORAGE_KEY]: state });
+    await chrome.storage.local.set({ [BANNER_STORAGE_KEY]: storage });
   } catch (err) {
-    console.warn('Failed to save banner state (extension context may be invalidated):', err);
+    console.warn('Failed to save banner storage (extension context may be invalidated):', err);
+  }
+}
+
+async function isChannelDismissed(channelKey?: string): Promise<boolean> {
+  if (!channelKey) return false;
+  const storage = await getBannerStorage();
+  const entry = storage.dismissedChannels?.[channelKey];
+  if (!entry) return false;
+  if (entry.dismissed && entry.dismissTime) {
+    if (Date.now() - entry.dismissTime > SUPPRESS_DURATION_MS) {
+      // expired - remove and persist
+      try {
+        delete (storage.dismissedChannels as Record<string, any>)[channelKey];
+        await saveBannerStorage(storage);
+      } catch (e) {
+        // ignore
+      }
+      return false;
+    }
+    return entry.dismissed === true;
+  }
+  return false;
+}
+
+async function setChannelDismissed(channelKey?: string): Promise<void> {
+  if (!channelKey) return;
+  const storage = await getBannerStorage();
+  storage.dismissedChannels = storage.dismissedChannels || {};
+  storage.dismissedChannels[channelKey] = { dismissed: true, dismissTime: Date.now() };
+  await saveBannerStorage(storage);
+}
+
+async function clearChannelDismissed(channelKey?: string): Promise<void> {
+  if (!channelKey) {
+    try {
+      await chrome.storage.local.remove(BANNER_STORAGE_KEY);
+    } catch (err) {
+      console.warn('clearBannerState: failed to remove storage key:', err);
+    }
+    return;
+  }
+  const storage = await getBannerStorage();
+  if (storage.dismissedChannels && storage.dismissedChannels[channelKey]) {
+    delete storage.dismissedChannels[channelKey];
+    await saveBannerStorage(storage);
   }
 }
 
@@ -222,35 +247,33 @@ function createBannerElement(): HTMLElement {
 }
 
 // Show the warning banner
-export async function showWarningBanner(channelName: string, reason?: string): Promise<void> {
-  // Check if banner should be suppressed
-  const state = await getBannerState();
-  
-  if (state.dismissed && state.isVisible) {
-    console.log('Banner is suppressed, not showing');
+export async function showWarningBanner(channelName: string, reason?: string, channelKey?: string): Promise<void> {
+  // If this channel was explicitly dismissed recently, do not show
+  if (await isChannelDismissed(channelKey)) {
+    console.log('Banner is suppressed for', channelKey, 'not showing');
     return;
   }
-  
-  // Remove existing banner if any
-  hideWarningBanner();
-  
+
+  // Remove existing banner DOM-only (do not persist dismissal)
+  try { await hideWarningBanner(false); } catch (e) { /* ignore */ }
+
   // Create and insert banner
   bannerElement = createBannerElement();
-  
+  currentChannelKey = channelKey;
+
   // Set message with channel name
   const messageEl = bannerElement.shadowRoot?.querySelector('.banner-message');
   if (messageEl) {
     const reasonText = reason ? ` ${reason}` : '';
     messageEl.textContent = `${getMessage('banner_message').replace('{channel}', channelName)}${reasonText}`;
   }
-  
+
   // Add event listeners
   const moreInfoBtn = bannerElement.shadowRoot?.getElementById('pew-more-info');
   const dismissBtn = bannerElement.shadowRoot?.getElementById('pew-dismiss');
   const closeBtn = bannerElement.shadowRoot?.getElementById('pew-close');
-  
+
   moreInfoBtn?.addEventListener('click', () => {
-    // Open extension details page (best-effort)
     try {
       const p = chrome.runtime.sendMessage({ type: 'OPEN_DETAILS_PAGE' });
       if (p && typeof (p as Promise<unknown>).catch === 'function') {
@@ -259,41 +282,51 @@ export async function showWarningBanner(channelName: string, reason?: string): P
     } catch (err) {
       console.warn('Failed to send OPEN_DETAILS_PAGE message (extension may be reloading):', err);
     }
-
-    // Best-effort hide
-    void hideWarningBanner();
+    // DOM-only hide
+    void hideWarningBanner(false);
   });
-  
-  const dismissHandler = () => {
-    hideWarningBanner();
+
+  const dismissHandler = async () => {
+    try {
+      await setChannelDismissed(channelKey);
+    } catch (err) {
+      console.warn('Failed to persist dismissal:', err);
+    }
+    void hideWarningBanner(false);
   };
-  
+
+  // Persist only when the user clicks the explicit dismiss button.
   dismissBtn?.addEventListener('click', dismissHandler);
-  closeBtn?.addEventListener('click', dismissHandler);
-  
+  // Close (X) should only hide DOM and NOT persist dismissal to avoid accidental "don't show again".
+  closeBtn?.addEventListener('click', () => { void hideWarningBanner(false); });
+
   // Insert into page
   document.body.appendChild(bannerElement);
-  
-  // Update state
-  await saveBannerState({ isVisible: true, dismissed: false });
+
+  // Optionally track visible channel in storage (non-critical)
+  try {
+    const s = await getBannerStorage();
+    s.visibleChannel = channelKey || channelName;
+    await saveBannerStorage(s);
+  } catch (err) {
+    // ignore storage errors
+  }
 }
 
 // Hide the warning banner
-export async function hideWarningBanner(): Promise<void> {
+export async function hideWarningBanner(persist = false, channelKey?: string): Promise<void> {
   if (bannerElement) {
-    bannerElement.remove();
+    try { bannerElement.remove(); } catch { /* ignore */ }
     bannerElement = null;
+    currentChannelKey = undefined;
   }
-  // Update state to dismissed with timestamp (guarded)
-  try {
-    await saveBannerState({
-      isVisible: false,
-      dismissed: true,
-      dismissTime: Date.now(),
-    });
-  } catch (err) {
-    // saveBannerState already logs, but guard here to prevent unhandled rejections
-    console.warn('hideWarningBanner: saveBannerState failed:', err);
+
+  if (persist && channelKey) {
+    try {
+      await setChannelDismissed(channelKey);
+    } catch (err) {
+      console.warn('hideWarningBanner: setChannelDismissed failed:', err);
+    }
   }
 }
 
@@ -304,11 +337,27 @@ export function isBannerVisible(): boolean {
 
 // Clear banner state (for testing or reset)
 export async function clearBannerState(): Promise<void> {
-  try {
-    await chrome.storage.local.remove(BANNER_STORAGE_KEY);
-  } catch (err) {
-    console.warn('clearBannerState: failed to remove storage key:', err);
-  }
+  await clearChannelDismissed();
+  try { await hideWarningBanner(false); } catch (e) { /* ignore */ }
+}
 
-  void hideWarningBanner();
+// Remove injected banner element without updating persisted dismissal state.
+// Useful when the page navigates (SPA) and we need to clear DOM-only UI.
+export function removeInjectedBanner(): void {
+  if (bannerElement) {
+    try {
+      bannerElement.remove();
+    } catch (err) {
+      // ignore
+    }
+    bannerElement = null;
+  }
+}
+
+// Dev helpers (exposed for debugging in content script console)
+try {
+  (window as any).__APE_getBannerStorage = async () => await getBannerStorage();
+  (window as any).__APE_clearBannerForKey = async (key?: string) => await clearChannelDismissed(key);
+} catch (e) {
+  // ignore in non-window contexts
 }
