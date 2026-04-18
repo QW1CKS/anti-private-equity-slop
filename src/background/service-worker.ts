@@ -31,8 +31,8 @@ export interface ChannelCheckMessage extends Message {
 
 // Message handler
 chrome.runtime.onMessage.addListener(
-  (message: Message, sender, sendResponse) => {
-    handleMessage(message).then(sendResponse);
+  (message: Message, sender: any, sendResponse: (response?: unknown) => void) => {
+    handleMessage(message).then((res) => sendResponse(res));
     return true; // Keep channel open for async response
   }
 );
@@ -121,15 +121,15 @@ async function handleCheckChannel(message: ChannelCheckMessage): Promise<{
 }
 
 // Alarm handler for periodic sync
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === 'blacklist-sync') {
+chrome.alarms.onAlarm.addListener((alarm: any) => {
+  if (alarm && alarm.name === 'blacklist-sync') {
     syncBlacklist();
   }
 });
 
 // Install event
-chrome.runtime.onInstalled.addListener((details) => {
-  if (details.reason === 'install') {
+chrome.runtime.onInstalled.addListener((details: any) => {
+  if (details && details.reason === 'install') {
     // Schedule initial sync
     chrome.alarms.create('blacklist-sync', { delayInMinutes: 5 });
   }
