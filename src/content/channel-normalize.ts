@@ -68,8 +68,7 @@ export function matchIdentifier(
 
   // Check channel ID
   if (identifier.type === 'channelId' || normalizedValue.type === 'channelId') {
-    if (entry.channelId === identifier.value || 
-        entry.channelId === normalizedValue.value) {
+    if (entry.channelId && (entry.channelId === identifier.value || entry.channelId === normalizedValue.value)) {
       return true;
     }
   }
@@ -130,8 +129,8 @@ export function buildAliasIndex(entries: ChannelEntry[]): Map<string, ChannelEnt
   const index = new Map<string, ChannelEntry[]>();
 
   for (const entry of entries) {
-    // Index by channel ID
-    addToIndex(index, entry.channelId, entry);
+    // Index by channel ID (optional)
+    if (entry.channelId) addToIndex(index, entry.channelId, entry);
 
     // Index by handles
     if (entry.handles) {

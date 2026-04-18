@@ -7,7 +7,7 @@
 
 // TypeScript types
 export interface ChannelEntry {
-  channelId: string;
+  channelId?: string;
   channelName: string;
   addedAt: string; // ISO date
   reason?: string;
@@ -44,7 +44,13 @@ function isISODateString(v: unknown): boolean {
 export function isValidChannelEntry(entry: unknown): entry is ChannelEntry {
   if (typeof entry !== 'object' || entry === null) return false;
   const e = entry as Record<string, unknown>;
-  if (!isNonEmptyString(e.channelId)) return false;
+
+  // Require at least one stable identifier: channelId, handles, or customUrl
+  const hasChannelId = isNonEmptyString(e.channelId);
+  const hasHandles = Array.isArray(e.handles) && (e.handles as unknown[]).length > 0;
+  const hasCustomUrl = isNonEmptyString(e.customUrl);
+  if (!hasChannelId && !hasHandles && !hasCustomUrl) return false;
+
   if (!isNonEmptyString(e.channelName)) return false;
   if (!isISODateString(e.addedAt)) return false;
   if (e.reason !== undefined && typeof e.reason !== 'string') return false;
