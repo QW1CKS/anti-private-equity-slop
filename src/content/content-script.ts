@@ -182,6 +182,13 @@ async function checkChannel(channelInfo: {
         await showWarningBanner(cachedRes.channelName || channelInfo.channelName || 'Unknown Channel', cachedRes.reason);
         return;
       }
+      else {
+        try {
+          console.debug('APE debug: cached snapshot did not match', channelInfo, 'snapshotVersion', cached.version, 'entries', Array.isArray(cached.entries) ? cached.entries.length : 0);
+        } catch (e) {
+          // ignore logging errors
+        }
+      }
     }
   } catch (err) {
     console.warn('Failed to read cached blacklist from storage (fast path):', err);

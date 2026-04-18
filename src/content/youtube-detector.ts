@@ -263,14 +263,12 @@ function getYtInitialData(): unknown {
 function extractChannelIdFromYtInitialData(data: unknown): string | null {
   if (!data || typeof data !== 'object') return null;
 
+  // Try quick paths first (common locations)
   const dataObj = data as Record<string, unknown>;
-
-  // Try various paths where YouTube stores channel ID
   const paths = [
-    'playerOverlays.playerOverlayRenderer.decoratedPlayerViewRenderer.decoratedPlayerViewRenderer.playerOverlay.videoDetailsWatchOverlayepi.channelId',
     'playerOverlays.playerOverlayRenderer.videoDetailsWatchOverlay.channelId',
     'contents.twoColumnWatchNextResults.results.results.contents.0.videoPrimaryInfoRenderer.channelId',
-    'contents.twoColumnWatchNextResults.secondaryResults.results.0.searchResultOverlay.channelId',
+    'playerResponse.videoDetails.author',
   ];
 
   for (const path of paths) {
@@ -280,7 +278,26 @@ function extractChannelIdFromYtInitialData(data: unknown): string | null {
     }
   }
 
-  return null;
+  // As a fallback, search the object recursively for the first string that looks like a YouTube channel ID (starts with 'UC')
+  function findChannelIdRecursive(obj: unknown, depth = 0): string | null {
+    if (depth > 8 || obj == null) return null;
+    if (typeof obj === 'string' && /^UC[a-zA-Z0-9_-]{20,25}$/.test(obj)) return obj;
+    if (typeof obj === 'object') {
+      for (const k of Object.keys(obj as Record<string, unknown>)) {
+        try {
+          const v = (obj as Record<string, unknown>)[k];
+          const found = findChannelIdRecursive(v, depth + 1);
+          if (found) return found;
+        } catch {
+          // ignore
+        }
+      }
+    }
+    return null;
+  }
+
+  const found = findChannelIdRecursive(dataObj, 0);
+  return found;
 }
 
 // Navigate YouTube's complex data structure to find channel name
@@ -289,28 +306,52 @@ function extractChannelNameFromYtInitialData(data: unknown): string | null {
 
   const dataObj = data as Record<string, unknown>;
 
-  // Prefer channel title/owner fields before falling back to the video title.
   const paths = [
-    // Common place for channel title on watch pages
     'contents.twoColumnWatchNextResults.results.results.contents.0.videoPrimaryInfoRenderer.channelTitle.simpleText',
-    // Newer structures expose owner renderer with runs array
     'contents.twoColumnWatchNextResults.results.results.contents.0.videoPrimaryInfoRenderer.owner.videoOwnerRenderer.title.runs.0.text',
-    // Player/player overlay may include owner or video details; try common fallbacks
     'playerResponse.videoDetails.author',
     'videoDetails.author',
-    // Finally, fall back to video title (least desirable)
-    'playerOverlays.playerOverlayRenderer.videoDetailsWatchOverlay.title.simpleText',
-    'contents.twoColumnWatchNextResults.results.results.contents.0.videoPrimaryInfoRenderer.title.simpleText',
   ];
 
   for (const path of paths) {
     const value = getNestedValue(dataObj, path.split('.'));
-    if (typeof value === 'string') {
-      return value;
-    }
+    if (typeof value === 'string') return value;
   }
 
-  return null;
+  // Fallback: recursively search for likely channel-name keys
+  function findChannelNameRecursive(obj: unknown, depth = 0): string | null {
+    if (depth > 8 || obj == null) return null;
+    if (typeof obj === 'string') {
+      // heuristic: skip very long strings that are likely video descriptions
+      if (obj.length > 200) return null;
+      // avoid pure URLs
+      if (/https?:\/\//.test(obj)) return null;
+      // likely candidate
+      return obj;
+    }
+    if (typeof obj === 'object') {
+      for (const k of Object.keys(obj as Record<string, unknown>)) {
+        if (/title|author|owner|channel|name/i.test(k)) {
+          const v = (obj as Record<string, unknown>)[k];
+          const found = findChannelNameRecursive(v, depth + 1);
+          if (found) return found;
+        }
+      }
+      // also traverse all children as fallback
+      for (const k of Object.keys(obj as Record<string, unknown>)) {
+        try {
+          const v = (obj as Record<string, unknown>)[k];
+          const found = findChannelNameRecursive(v, depth + 1);
+          if (found) return found;
+        } catch {
+          // ignore
+        }
+      }
+    }
+    return null;
+  }
+
+  return findChannelNameRecursive(dataObj, 0);
 }
 
 // Helper to get nested object value
