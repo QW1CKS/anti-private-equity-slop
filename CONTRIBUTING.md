@@ -1,10 +1,19 @@
 ---
 # How to contribute channels to the blacklist
 
-Thank you for helping keep the blacklist current! This project accepts PRs that add channels to the shared blacklist. The easiest way to prepare a correct entry is to run the helper below in your browser console while on a YouTube **channel page** or **any video from that channel**.
+
+
+<p align="center">
+<strong>
+<span style="color:red; font-size:1.2em;">
+🚨 <span style="color:red;">WARNING:</span> Run the script <u>ONLY</u> on the YouTube <b>channel page</b> (URL like <code>youtube.com/channel/UC...</code> or <code>youtube.com/@handle</code>).<br>
+<span style="color:red;">Do <u>NOT</u> run it on a video page or anywhere else!</span>
+</span>
+</strong>
+</p>
 
 **How to use the helper:**
-1. Open the channel page (or any video from that channel).
+1. Open the channel page for the channel you want to blacklist. (Do **not** use a video page or any other page.)
 2. Open Developer Tools → Console.
 3. Paste the script below and press Enter.
 4. The script will output a ready-to-paste JSON object and copy it to your clipboard.
@@ -16,7 +25,8 @@ Thank you for helping keep the blacklist current! This project accepts PRs that 
 
 ---
 
-## Console helper (paste this into the Console)
+
+## Console helper (paste this into the Console — on the channel page only)
 
 ```javascript
 (async () => {
@@ -25,7 +35,12 @@ Thank you for helping keep the blacklist current! This project accepts PRs that 
   const err = (...a) => console.error('contrib-helper:', ...a);
 
   if (!/\b(youtube\.com|youtu\.be)\b/.test(location.hostname)) {
-    err('Not a YouTube page. Open the channel page or a video from that channel and run this script.');
+    err('Not a YouTube page. Open the actual channel page and run this script.');
+    return;
+  }
+  // Strongly recommend running ONLY on the channel page, not on a video or elsewhere
+  if (!/^\/(@[\w-]+|channel\/UC[\w-]+)\/?$/.test(location.pathname)) {
+    err('You are NOT on a channel page. Please go to the channel page (URL like youtube.com/@handle or youtube.com/channel/UC...) and run this script there.');
     return;
   }
 
