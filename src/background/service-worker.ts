@@ -162,15 +162,27 @@ async function handleCheckChannel(message: ChannelCheckMessage): Promise<{
 
 // Alarm handler for periodic sync
 chrome.alarms.onAlarm.addListener((alarm: any) => {
-  if (alarm && alarm.name === 'blacklist-sync') {
+  if (!alarm) return;
+  if (alarm.name === 'blacklist-sync' || alarm.name === 'blacklist-sync-initial') {
     syncBlacklist();
+    if (alarm.name === 'blacklist-sync-initial') {
+      chrome.alarms.clear('blacklist-sync-initial');
+    }
   }
 });
 
 // Install event
 chrome.runtime.onInstalled.addListener((details: any) => {
+  // Schedule periodic sync every 12 hours
+  chrome.alarms.create('blacklist-sync', { periodInMinutes: 12 * 60 });
+
   if (details && details.reason === 'install') {
-    // Schedule initial sync
-    chrome.alarms.create('blacklist-sync', { delayInMinutes: 5 });
+    // Schedule a near-term one-shot to ensure a quick first sync
+    chrome.alarms.create('blacklist-sync-initial', { delayInMinutes: 5 });
   }
+});
+
+// Ensure a sync when the browser starts
+chrome.runtime.onStartup.addListener(() => {
+  syncBlacklist();
 });

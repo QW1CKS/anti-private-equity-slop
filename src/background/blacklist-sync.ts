@@ -26,20 +26,28 @@ async function setStorage<T>(key: string, value: T): Promise<void> {
   }
 }
 
-// Fetch with ETag support
+// Fetch with ETag support and robust JSON handling
 async function fetchWithETag(
   url: string,
   etag?: string
 ): Promise<{ data: unknown; etag?: string; notModified: boolean }> {
-  const headers: Record<string, string> = {
-    'Accept': 'application/json',
+  const baseHeaders: Record<string, string> = {
+    Accept: 'application/json',
   };
 
-  if (etag) {
-    headers['If-None-Match'] = etag;
-  }
+  const doFetch = async (fetchUrl: string, includeEtag: boolean) => {
+    const headers = { ...baseHeaders } as Record<string, string>;
+    if (includeEtag && etag) headers['If-None-Match'] = etag;
+    return await fetch(fetchUrl, { headers, cache: 'no-store' });
+  };
 
-  const response = await fetch(url, { headers });
+  // Primary fetch (may include If-None-Match)
+  let response: Response;
+  try {
+    response = await doFetch(url, true);
+  } catch (err) {
+    throw new Error('Network error fetching snapshot: ' + String(err));
+  }
 
   if (response.status === 304) {
     return { data: null, etag, notModified: true };
@@ -49,10 +57,38 @@ async function fetchWithETag(
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
 
-  const newEtag = response.headers.get('ETag') || etag;
-  const data = await response.json();
+  // Read as text so we can give better diagnostics for empty/invalid bodies
+  const text = await response.text();
 
-  return { data, etag: newEtag, notModified: false };
+  // If the body is empty, try one retry without If-None-Match and with a timestamp
+  if (!text || !text.trim()) {
+    try {
+      const retryUrl = url.includes('?') ? `${url}&t=${Date.now()}` : `${url}?t=${Date.now()}`;
+      const retryResp = await doFetch(retryUrl, false);
+      if (retryResp.status === 304) return { data: null, etag, notModified: true };
+      if (!retryResp.ok) throw new Error(`HTTP ${retryResp.status}: ${retryResp.statusText}`);
+      const retryText = await retryResp.text();
+      if (!retryText || !retryText.trim()) throw new Error('Empty response body from remote source');
+      const newEtag = retryResp.headers.get('ETag') || etag;
+      try {
+        const parsed = JSON.parse(retryText);
+        return { data: parsed, etag: newEtag, notModified: false };
+      } catch (parseErr) {
+        throw new Error('Failed to parse JSON on retry: ' + (parseErr instanceof Error ? parseErr.message : String(parseErr)));
+      }
+    } catch (retryErr) {
+      throw new Error('Empty response body and retry failed: ' + String(retryErr));
+    }
+  }
+
+  // Try to parse the primary response
+  try {
+    const parsed = JSON.parse(text);
+    const newEtag = response.headers.get('ETag') || etag;
+    return { data: parsed, etag: newEtag, notModified: false };
+  } catch (parseErr) {
+    throw new Error('Failed to parse JSON: ' + (parseErr instanceof Error ? parseErr.message : String(parseErr)));
+  }
 }
 
 // Verify signature (simplified - in production use proper crypto)
@@ -82,6 +118,27 @@ async function fetchSnapshotFromRawUrl(): Promise<BlacklistSnapshot | null> {
     return null;
   }
 
+  // Helper: load the bundled snapshot packaged with the extension
+  async function loadBundledSnapshot(): Promise<BlacklistSnapshot | null> {
+    try {
+      const url = chrome.runtime.getURL('blacklist.json');
+      const resp = await fetch(url);
+      if (!resp.ok) {
+        console.warn('Failed to load bundled blacklist.json:', resp.status, resp.statusText);
+        return null;
+      }
+      const parsed = await resp.json();
+      if (!isValidSnapshot(parsed)) {
+        console.warn('Bundled blacklist.json has invalid format');
+        return null;
+      }
+      return parsed as BlacklistSnapshot;
+    } catch (err) {
+      console.warn('Error loading bundled blacklist.json:', err);
+      return null;
+    }
+  }
+
   try {
     const { data, etag, notModified } = await fetchWithETag(
       BLACKLIST_RAW_URL,
@@ -92,8 +149,26 @@ async function fetchSnapshotFromRawUrl(): Promise<BlacklistSnapshot | null> {
       return null;
     }
 
+    // Handle empty or missing data gracefully by falling back to bundled snapshot
+    if (!data) {
+      console.warn('Remote snapshot returned empty data; attempting bundled fallback.');
+      const bundled = await loadBundledSnapshot();
+      if (bundled) {
+        await setStorage(STORAGE_KEYS.BLACKLIST, bundled);
+        await setStorage(STORAGE_KEYS.LAST_SYNC, new Date().toISOString());
+        return bundled;
+      }
+      return null;
+    }
+
     if (!isValidSnapshot(data)) {
-      console.error('Invalid snapshot format from raw URL');
+      console.warn('Invalid snapshot format from raw URL; ignoring remote snapshot.');
+      const bundled = await loadBundledSnapshot();
+      if (bundled) {
+        await setStorage(STORAGE_KEYS.BLACKLIST, bundled);
+        await setStorage(STORAGE_KEYS.LAST_SYNC, new Date().toISOString());
+        return bundled;
+      }
       return null;
     }
 
@@ -103,7 +178,17 @@ async function fetchSnapshotFromRawUrl(): Promise<BlacklistSnapshot | null> {
 
     return data as BlacklistSnapshot;
   } catch (error) {
-    console.error('Failed to fetch snapshot from raw URL:', error);
+    console.warn('Failed to fetch snapshot from raw URL:', error);
+
+    // Try to load bundled snapshot as a safe fallback
+    const bundled = await loadBundledSnapshot();
+    if (bundled) {
+      console.info('Using bundled blacklist.json as fallback after remote fetch failure.');
+      await setStorage(STORAGE_KEYS.BLACKLIST, bundled);
+      await setStorage(STORAGE_KEYS.LAST_SYNC, new Date().toISOString());
+      return bundled;
+    }
+
     return null;
   }
 }
