@@ -53,6 +53,19 @@ function setupNavigationObserver(): void {
   let lastHandledUrl = lastUrl;
   let navigationTimeout: number | null = null;
 
+  // Listen for blacklist updates from service worker
+  chrome.runtime.onMessage.addListener((message: any) => {
+    if (message && message.type === 'BLACKLIST_UPDATED') {
+      console.log('APE: Blacklist updated to version', message.payload?.version, '- clearing local cache');
+      // Clear any cached snapshot in content script by invalidating the storage read cache
+      // The next check will re-read from storage which should have the new version
+      lastBlacklistCheckVersion = null;
+      // Re-check current page with new blacklist
+      setTimeout(() => onPageChange(), 100);
+    }
+    return true;
+  });
+
   // Create a robust "locationchange" signal by wrapping History API methods
   (function ensureLocationChangeEvent() {
     type PushStateFn = (data?: unknown, unused?: string, url?: string | URL | null) => void;
@@ -462,10 +475,21 @@ if (document.readyState === 'loading') {
 }
 
 // Read the cached blacklist snapshot directly from chrome.storage.local
+let lastBlacklistCheckVersion: string | null = null;
+let cachedSnapshotFromStorage: any | null = null;
+
 async function getCachedSnapshotFromStorage(): Promise<any | null> {
   try {
     const result = await chrome.storage.local.get(STORAGE_KEYS.BLACKLIST);
-    return result[STORAGE_KEYS.BLACKLIST] ?? null;
+    const snapshot = result[STORAGE_KEYS.BLACKLIST] ?? null;
+    
+    // Cache the snapshot and its version to avoid repeated storage reads
+    if (snapshot && snapshot.version !== lastBlacklistCheckVersion) {
+      cachedSnapshotFromStorage = snapshot;
+      lastBlacklistCheckVersion = snapshot.version;
+    }
+    
+    return cachedSnapshotFromStorage;
   } catch (err) {
     console.warn('getCachedSnapshotFromStorage failed:', err);
     try {

@@ -98,6 +98,20 @@ async function handleSyncBlacklist(force = false): Promise<{
   // Invalidate matcher cache on update
   if (result.updated) {
     invalidateCache();
+    
+    // Notify all content scripts about the update so they can refresh their local caches
+    chrome.tabs.query({}, (tabs: any[]) => {
+      for (const tab of tabs) {
+        if (tab.id && tab.url && (tab.url.includes('youtube.com'))) {
+          chrome.tabs.sendMessage(tab.id, {
+            type: 'BLACKLIST_UPDATED',
+            payload: { version: result.version }
+          }).catch(() => {
+            // Ignore errors - tab may not have content script loaded
+          });
+        }
+      }
+    });
   }
   
   return result;

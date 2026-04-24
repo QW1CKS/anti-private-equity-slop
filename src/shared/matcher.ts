@@ -13,13 +13,16 @@ import {
   normalizeChannelName,
 } from '../content/channel-normalize.js';
 
-// Cached alias index
+// Cached alias index with version tracking
 let aliasIndex: Map<string, ChannelEntry[]> | null = null;
+let cachedVersion: string | null = null;
 
-// Build or get cached alias index
+// Build or get cached alias index (with version validation)
 function getAliasIndex(snapshot: BlacklistSnapshot): Map<string, ChannelEntry[]> {
-  if (!aliasIndex) {
+  // Invalidate cache if version changed
+  if (!aliasIndex || cachedVersion !== snapshot.version) {
     aliasIndex = buildAliasIndex(snapshot.entries);
+    cachedVersion = snapshot.version;
   }
   return aliasIndex;
 }
@@ -27,6 +30,7 @@ function getAliasIndex(snapshot: BlacklistSnapshot): Map<string, ChannelEntry[]>
 // Invalidate cache when blacklist is updated
 export function invalidateCache(): void {
   aliasIndex = null;
+  cachedVersion = null;
 }
 
 // Check if a channel is blacklisted

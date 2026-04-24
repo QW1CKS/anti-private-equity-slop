@@ -3,23 +3,24 @@
  */
 
 import {
-  ChannelEntrySchema,
-  BlacklistSnapshotSchema,
-  ManifestSchema,
   isValidChannelEntry,
   isValidSnapshot,
   isValidManifest,
   SCHEMA_VERSION,
 } from '../../src/shared/blacklist-schema';
 
-describe('ChannelEntrySchema', () => {
+// Note: The blacklist-schema.ts file uses lightweight runtime validation functions
+// instead of Zod schemas to avoid dependencies in the service worker.
+// Tests use the isValid* functions directly.
+
+describe('ChannelEntry Validation', () => {
   it('should validate a valid channel entry', () => {
     const entry = {
       channelId: 'UC123456',
       channelName: 'Test Channel',
       addedAt: '2024-01-01T00:00:00Z',
     };
-    expect(ChannelEntrySchema.safeParse(entry).success).toBe(true);
+    expect(isValidChannelEntry(entry)).toBe(true);
   });
 
   it('should validate with optional fields', () => {
@@ -32,7 +33,7 @@ describe('ChannelEntrySchema', () => {
       customUrl: 'custom',
       historicNames: ['old'],
     };
-    expect(ChannelEntrySchema.safeParse(entry).success).toBe(true);
+    expect(isValidChannelEntry(entry)).toBe(true);
   });
 
   it('should reject entry without channelId', () => {
@@ -40,7 +41,7 @@ describe('ChannelEntrySchema', () => {
       channelName: 'Test Channel',
       addedAt: '2024-01-01T00:00:00Z',
     };
-    expect(ChannelEntrySchema.safeParse(entry).success).toBe(false);
+    expect(isValidChannelEntry(entry)).toBe(false);
   });
 
   it('should reject entry with empty channelId', () => {
@@ -49,7 +50,7 @@ describe('ChannelEntrySchema', () => {
       channelName: 'Test Channel',
       addedAt: '2024-01-01T00:00:00Z',
     };
-    expect(ChannelEntrySchema.safeParse(entry).success).toBe(false);
+    expect(isValidChannelEntry(entry)).toBe(false);
   });
 
   it('should reject entry without channelName', () => {
@@ -57,11 +58,11 @@ describe('ChannelEntrySchema', () => {
       channelId: 'UC123456',
       addedAt: '2024-01-01T00:00:00Z',
     };
-    expect(ChannelEntrySchema.safeParse(entry).success).toBe(false);
+    expect(isValidChannelEntry(entry)).toBe(false);
   });
 });
 
-describe('BlacklistSnapshotSchema', () => {
+describe('BlacklistSnapshot Validation', () => {
   it('should validate a valid snapshot', () => {
     const snapshot = {
       version: '1.0.0',
@@ -71,7 +72,7 @@ describe('BlacklistSnapshotSchema', () => {
         { channelId: 'UC123', channelName: 'Test', addedAt: '2024-01-01T00:00:00Z' },
       ],
     };
-    expect(BlacklistSnapshotSchema.safeParse(snapshot).success).toBe(true);
+    expect(isValidSnapshot(snapshot)).toBe(true);
   });
 
   it('should reject snapshot without entries', () => {
@@ -80,11 +81,11 @@ describe('BlacklistSnapshotSchema', () => {
       updatedAt: '2024-01-01T00:00:00Z',
       signature: 'sig123',
     };
-    expect(BlacklistSnapshotSchema.safeParse(snapshot).success).toBe(false);
+    expect(isValidSnapshot(snapshot)).toBe(false);
   });
 });
 
-describe('ManifestSchema', () => {
+describe('Manifest Validation', () => {
   it('should validate a valid manifest', () => {
     const manifest = {
       version: '1.0.0',
@@ -92,7 +93,7 @@ describe('ManifestSchema', () => {
       totalChannels: 100,
       entryCount: 100,
     };
-    expect(ManifestSchema.safeParse(manifest).success).toBe(true);
+    expect(isValidManifest(manifest)).toBe(true);
   });
 
   it('should reject negative entryCount', () => {
@@ -102,7 +103,7 @@ describe('ManifestSchema', () => {
       totalChannels: 100,
       entryCount: -1,
     };
-    expect(ManifestSchema.safeParse(manifest).success).toBe(false);
+    expect(isValidManifest(manifest)).toBe(false);
   });
 });
 
