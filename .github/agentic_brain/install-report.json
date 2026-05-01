@@ -1,0 +1,31 @@
+{
+  "installedAt": "2026-05-01T19:57:46.973Z",
+  "mode": "install",
+  "targetRoot": "C:\\Users\\user\\Desktop\\Documentations\\github\\anti-private-equity-slop",
+  "sourceRoot": "C:\\Users\\user\\Desktop\\Documentations\\github\\anti-private-equity-slop\\Agentic-Brain Template\\awesome-copilot-main",
+  "profile": "fullstack",
+  "coreSubsetOnly": true,
+  "importedFolders": [
+    "agents",
+    "instructions",
+    "skills",
+    "hooks",
+    "workflows",
+    "plugins"
+  ],
+  "importedKinds": {
+    "agent": 203,
+    "instruction": 177,
+    "skill": 775,
+    "hook": 22,
+    "workflow": 7,
+    "plugin-external": 1,
+    "plugin": 529
+  },
+  "selectedCount": 256,
+  "excludedCount": 1458,
+  "catalogPath": ".github/agentic_brain/catalog/awesome-catalog.yaml",
+  "requiredPath": ".github/agentic_brain/catalog/required-assets.yaml",
+  "ideaSource": "C:\\Users\\user\\Desktop\\Documentations\\github\\anti-private-equity-slop\\PRD.md",
+  "curatedCount": 13
+}
