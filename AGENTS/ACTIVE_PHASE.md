@@ -23,16 +23,16 @@
 2. `.github/agents/agentic-brain-asset-curator.agent.md` ⏳ pending
 
 ## Current Focus
-- Confirm curated assets are present in `.github/agents`, `.github/hooks`, `.github/skills`, and `.github/workflows`.
-- Keep phase checklists unstarted for execution agents.
+- Execute `2) Agentic Brain Installer - Framework State Integrity` checklist items in order.
+- Preserve `1) Gem Orchestrator - Phase Control` as completed baseline with recorded evidence.
 
 ## Last Completed Item
-- Curated agent/hook/skill assets were copied from vendor to runtime `.github/` locations.
+- `1) Gem Orchestrator - Phase Control` checkpoints, sequencing, failure path, and evidence contract were defined and marked complete.
 
 ## Verification Status
-- Build: pending (`npm run build`)
-- Test: pending (`npm test`)
-- Lint: pending (`npm run lint`)
+- Build: pass (`npm run build`)
+- Test: pass (`npm test -- --runInBand`)
+- Lint: fail (`npm run lint`, pre-existing lint violations in runtime source files)
 - Evidence Link: `.github/agent_memory/03_actions.tsv`
 
 ## Blockers
@@ -43,4 +43,4 @@
 - Next Handoff Trigger: Phase 1 docs reviewed and accepted.
 
 ## Last Updated
-- 2026-05-01
+- 2026-05-08

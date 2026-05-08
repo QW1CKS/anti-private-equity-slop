@@ -53,11 +53,45 @@ Establish a trustworthy execution baseline for a privacy-first Chrome MV3 extens
 ## Agent-Orchestrated Execution Plan
 
 ### 1) Gem Orchestrator - Phase Control
-- [ ] Define Phase 1 checkpoints (framework readiness, security baseline, CI baseline, handoff readiness).
-- [ ] Define explicit ownership sequence for every checkpoint.
-- [ ] Define failure/rollback path when a checkpoint fails.
-- [ ] Register checkpoint evidence requirements in this checklist.
-- [ ] Register command contract (`npm run build`, `npm test`, `npm run lint`) for downstream phases.
+- [x] Define Phase 1 checkpoints (framework readiness, security baseline, CI baseline, handoff readiness).
+- [x] Define explicit ownership sequence for every checkpoint.
+- [x] Define failure/rollback path when a checkpoint fails.
+- [x] Register checkpoint evidence requirements in this checklist.
+- [x] Register command contract (`npm run build`, `npm test`, `npm run lint`) for downstream phases.
+
+#### 1A) Phase 1 checkpoints (defined)
+- `CP1 Framework Readiness` - Owner: `.github/agents/agentic-brain-installer.agent.md`; Gate: AGENTS root docs linked, phase folders present, runtime asset roots documented.
+- `CP2 Security Baseline` - Owner: `.github/agents/se-security-reviewer.agent.md`; Gate: local-matching/no-telemetry posture, secrets policy, and release-blocking security scan expectations documented.
+- `CP3 CI Baseline` - Owner: `.github/agents/github-actions-expert.agent.md`; Gate: required build workflow present and hardening roadmap (permissions, pinning, dependency/code scanning) documented.
+- `CP4 Handoff Readiness` - Owner: `.github/agents/gem-orchestrator.agent.md`; Gate: evidence rows appended to memory logs, checklist completion evidence present, and next-owner trigger declared.
+
+#### 1B) Ownership sequence (explicit)
+1. `CP1 Framework Readiness` -> `agentic-brain-installer`
+2. `CP2 Security Baseline` -> `se-security-reviewer`
+3. `CP3 CI Baseline` -> `github-actions-expert`
+4. `CP4 Handoff Readiness` -> `gem-orchestrator`
+
+#### 1C) Failure and rollback path
+1. Mark failing checkpoint item as `[ ]` and capture failed artifact/command evidence in this checklist section.
+2. Record blocker (ID, owner, attempts, required intervention) in `.github/agent_memory/04_blockers.md` if unresolved in the same execution window.
+3. Keep ownership on current checkpoint owner; do not advance checkpoint sequence or phase state.
+4. Re-run command contract (`npm run build`, `npm test`, `npm run lint`) after remediation.
+5. Only restore checkpoint to `[x]` when both artifact evidence and command evidence are present.
+
+#### 1D) Checkpoint evidence requirements
+- Every completed checkpoint must add a row to `.github/agent_memory/03_actions.tsv`.
+- Evidence must include changed artifact paths and command outcomes.
+- Any ownership transfer must append one row to `.github/agent_memory/05_handoffs.tsv`.
+- No historical edits to `03_actions.tsv` or `05_handoffs.tsv` (append-only contract).
+
+#### 1E) Command contract (downstream phases)
+- Build: `npm run build` (must pass)
+- Test: `npm test` (must pass)
+- Lint: `npm run lint` (must pass for phase closure; pre-existing failures must be explicitly tracked until resolved)
+
+#### 1F) Evidence for section 1 completion
+- Artifacts: `AGENTS/Phase 1 - Foundation/CHECKLIST.md`, `AGENTS/ACTIVE_PHASE.md`, `AGENTS/PROGRESS_DASHBOARD.md`, `.github/agent_memory/01_decisions.md`, `.github/agent_memory/03_actions.tsv`
+- Command evidence: build pass, test pass, lint failing due pre-existing repository lint violations (tracked in command outputs)
 
 ### 2) Agentic Brain Installer - Framework State Integrity
 - [ ] Verify AGENTS root docs exist and are internally linked correctly.

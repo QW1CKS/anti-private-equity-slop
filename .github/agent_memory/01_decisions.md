@@ -26,3 +26,13 @@
 - **Decision:** Use repo profile 'fullstack' driven tag matching plus core orchestrator baseline.
 - **Rationale:** Keeps installation broad while still producing a concise required set for execution order.
 - **Impacts:** required-assets catalog, required custom agents matrix
+
+## Phase 1 Checkpoint Governance Decision (2026-05-08)
+- **ID:** DEC-20260508-001
+- **Status:** Accepted
+- **Date:** 2026-05-08
+- **Context:** Phase 1 had execution tasks but no explicit checkpoint governance contract covering owner sequence, failure rollback, and evidence thresholds in one place.
+- **Decision:** Define and enforce a four-checkpoint Phase 1 control model (Framework Readiness, Security Baseline, CI Baseline, Handoff Readiness) with explicit owner order, rollback rules, and mandatory command contract evidence.
+- **Rationale:** Prevents ambiguous completion states and blocks premature handoff when build/test/lint or artifact evidence is incomplete.
+- **Impacts:** `AGENTS/Phase 1 - Foundation/CHECKLIST.md`, `AGENTS/ACTIVE_PHASE.md`, `AGENTS/PROGRESS_DASHBOARD.md`, `.github/agent_memory/03_actions.tsv`
+- **Related:** [Action ledger](./03_actions.tsv)
