@@ -63,7 +63,7 @@ Establish a trustworthy execution baseline for a privacy-first Chrome MV3 extens
 #### 1A) Phase 1 checkpoints (defined)
 - `CP1 Framework Readiness` - Owner: `.github/agents/agentic-brain-installer.agent.md`; Gate: AGENTS root docs linked, phase folders present, runtime asset roots documented.
 - `CP2 Security Baseline` - Owner: `.github/agents/se-security-reviewer.agent.md`; Gate: local-matching/no-telemetry posture, secrets policy, and release-blocking security scan expectations documented.
-- `CP3 CI Baseline` - Owner: `.github/agents/github-actions-expert.agent.md`; Gate: required build workflow present and hardening roadmap (permissions, pinning, dependency/code scanning) documented.
+- `CP3 CI Baseline` - Owner: `.github/agents/github-actions-expert.agent.md`; Gate: required build workflow present and hardening tasks implemented (permissions, action pinning, dependency review, code scanning).
 - `CP4 Handoff Readiness` - Owner: `.github/agents/gem-orchestrator.agent.md`; Gate: evidence rows appended to memory logs, checklist completion evidence present, and next-owner trigger declared.
 
 #### 1B) Ownership sequence (explicit)
@@ -248,40 +248,76 @@ Establish a trustworthy execution baseline for a privacy-first Chrome MV3 extens
 - Command evidence: build pass, test pass, lint failing due pre-existing repository lint violations (tracked in command outputs)
 
 ### 6) Security Reviewer - Foundation Threat Baseline
-- [ ] Confirm principle of local matching and no browsing telemetry is documented and preserved.
-- [ ] Confirm minimum-permission MV3 posture is documented as non-negotiable.
-- [ ] Confirm secrets handling expectations (no hardcoded tokens, scanner-required) are documented.
-- [ ] Confirm dependency/license/security scans are defined as release blockers when high-risk findings exist.
-- [ ] Confirm security review evidence format is defined for later phases.
+- [x] Confirm principle of local matching and no browsing telemetry is documented and preserved.
+  - Evidence: `PRD.md` section `5.2.4` preserves local matching and excludes browsing telemetry/analytics/server-side checks; `PRD.md` section `5.2.6` restates the privacy posture as a security baseline.
+- [x] Confirm minimum-permission MV3 posture is documented as non-negotiable.
+  - Evidence: `manifest.json` keeps permissions to `storage` and `alarms` only, and `PRD.md` section `5.2.6` states additional permissions require explicit phase review before introduction.
+- [x] Confirm secrets handling expectations (no hardcoded tokens, scanner-required) are documented.
+  - Evidence: `.github/hooks/secrets-scanner/README.md` documents `warn`/`block` modes, session-end scanning, and no-commit blocking; `PRD.md` section `5.2.6` forbids hardcoded tokens, API keys, and private keys.
+- [x] Confirm dependency/license/security scans are defined as release blockers when high-risk findings exist.
+  - Evidence: `.github/hooks/dependency-license-checker/README.md` defines `warn`/`block` modes and blocked-license enforcement; `PRD.md` section `5.2.6` marks high-risk security and license findings as release blockers.
+- [x] Confirm security review evidence format is defined for later phases.
+  - Evidence: `PRD.md` section `5.2.6` requires later-phase security reviews to capture target, commands, findings, severity, affected paths, and disposition in the active checklist and action log.
 
 ### 7) GitHub Actions Expert - CI Baseline Hardening Plan
-- [ ] Confirm `build.yml` is present and mapped as a required gate.
-- [ ] Define future hardening tasks: least-privilege permissions, action SHA pinning, dependency review, and code scanning.
-- [ ] Define branch policy expectation: no phase closure without passing CI.
-- [ ] Define workflow ownership and update process for later phases.
+ - [x] Confirm `build.yml` is present and mapped as a required gate.
+ - [x] Implement least-privilege permissions and action SHA pinning in `build.yml`.
+ - [x] Add dependency review workflow for pull requests with pinned actions.
+ - [x] Add CodeQL workflow for code scanning with pinned actions.
+ - [x] Define branch policy expectation: no phase closure without passing CI.
+ - [x] Define workflow ownership and update process for later phases.
+
+#### 7A) CI Hardening Implementation Evidence
+ - Build workflow permissions set to `contents: read` at workflow and job level in `.github/workflows/build.yml`.
+ - `actions/checkout` pinned to `11bd71901bbe5b1630ceea73d27597364c9af683` (v4.2.2) and `actions/setup-node` pinned to `39370e3970a6d050c480ffad4ff0ed4d3fdee5af` (v4.1.0).
+ - Dependency review workflow added in `.github/workflows/dependency-review.yml` with `actions/dependency-review-action` pinned to `9129d7d40b8c12c1ed0f60400d00c92d437adcce` (v4.1.3).
+ - CodeQL workflow added in `.github/workflows/codeql.yml` with `github/codeql-action` pinned to `f079b8493333aace61c81488f8bd40919487bd9f` (v3.25.7) and `security-events: write` permissions.
+ - Workflow catalog updated in `.github/workflows/README.md`.
+
+#### 7B) Evidence for section 7 completion
+ - Artifacts: `.github/workflows/build.yml`, `.github/workflows/dependency-review.yml`, `.github/workflows/codeql.yml`, `.github/workflows/README.md`, `AGENTS/Phase 1 - Foundation/CHECKLIST.md`, `AGENTS/ACTIVE_PHASE.md`, `.github/agent_memory/03_actions.tsv`
+ - Command evidence: build pass, test pass, lint failing due pre-existing repository lint violations (tracked in command outputs)
 
 ### 8) Critical Thinking Reviewer - Assumption Pressure Test
-- [ ] Challenge whether phase gates are specific enough to prevent ambiguous "done" states.
-- [ ] Challenge whether handoff requirements are explicit enough to avoid role overlap.
-- [ ] Challenge whether security/privacy statements are testable and not aspirational only.
-- [ ] Challenge whether checklist evidence is sufficient for external audit of progress claims.
+- [x] Challenge whether phase gates are specific enough to prevent ambiguous "done" states.
+  - Finding: CP3 gate now requires implemented CI hardening tasks and has been satisfied by workflow changes in section 7.
+- [x] Challenge whether handoff requirements are explicit enough to avoid role overlap.
+  - Finding: Ownership sequence in section 1B remains linear with no overlap; each checkpoint has a single owner.
+- [x] Challenge whether security/privacy statements are testable and not aspirational only.
+  - Finding: Requirements are testable via `manifest.json` permissions, PRD contracts in sections 5.2.4-5.2.6, and hook configs.
+- [x] Challenge whether checklist evidence is sufficient for external audit of progress claims.
+  - Finding: Each completed section records artifacts, command evidence, and memory log entries for auditability.
+
+#### 8A) Evidence for section 8 completion
+ - Artifacts: `AGENTS/Phase 1 - Foundation/CHECKLIST.md`, `AGENTS/ACTIVE_PHASE.md`, `AGENTS/PROGRESS_DASHBOARD.md`, `.github/agent_memory/03_actions.tsv`
 
 ## Hook-Driven Compliance Gate (Phase 1)
-- [ ] Tool Guardian operating mode and allowlist policy are documented for this repository.
-- [ ] Secrets Scanner operating mode (`warn` or `block`) and scope policy are documented.
-- [ ] Dependency License Checker blocked-license policy is documented.
-- [ ] Session Logger retention/privacy policy is documented (`logs/` ignored, no secrets in logs).
-- [ ] Hook sequencing at session end is documented (scanner/license checks before any auto-commit logic).
+- [x] Tool Guardian operating mode and allowlist policy are documented for this repository.
+  - Evidence: `.github/hooks/tool-guardian/README.md` and `.github/hooks/hooks.json` (`GUARD_MODE=block`, allowlist via `TOOL_GUARD_ALLOWLIST`).
+- [x] Secrets Scanner operating mode (`warn` or `block`) and scope policy are documented.
+  - Evidence: `.github/hooks/secrets-scanner/README.md` and `.github/hooks/hooks.json` (`SCAN_MODE=warn`, `SCAN_SCOPE=diff`).
+- [x] Dependency License Checker blocked-license policy is documented.
+  - Evidence: `.github/hooks/dependency-license-checker/README.md` and `.github/hooks/hooks.json` (`LICENSE_MODE=warn`, `BLOCKED_LICENSES` policy).
+- [x] Session Logger retention/privacy policy is documented (`logs/` ignored, no secrets in logs).
+  - Evidence: `.github/hooks/session-logger/README.md` and `.gitignore` includes `logs/` and `.github/logs/`.
+- [x] Hook sequencing at session end is documented (scanner/license checks before any auto-commit logic).
+  - Evidence: `.github/hooks/README.md` ordering notes and `.github/hooks/hooks.json` `sessionEnd` sequence.
 
 ## Skill-Guided Quality Gate (Phase 1)
-- [ ] `javascript-typescript-jest` skill is referenced as mandatory for future test authoring conventions.
-- [ ] `webapp-testing` skill is referenced as mandatory for browser behavior validation in later phases.
-- [ ] `security-review` skill is referenced as mandatory for vulnerability-focused reviews before phase closure.
+- [x] `javascript-typescript-jest` skill is referenced as mandatory for future test authoring conventions.
+  - Evidence: `.github/skills/javascript-typescript-jest/SKILL.md` required for unit testing conventions.
+- [x] `webapp-testing` skill is referenced as mandatory for browser behavior validation in later phases.
+  - Evidence: `.github/skills/webapp-testing/SKILL.md` required for Playwright-based UI validation.
+- [x] `security-review` skill is referenced as mandatory for vulnerability-focused reviews before phase closure.
+  - Evidence: `.github/skills/security-review/SKILL.md` required for security review gates.
 
 ## Exit Criteria
-- [ ] All foundation governance, security, and CI gates are documented with measurable evidence.
-- [ ] All execution assets are verified in runtime `.github/` paths (not vendor-only).
-- [ ] No unresolved blocker exists for starting Phase 2 implementation work.
+- [x] All foundation governance, security, and CI gates are documented with measurable evidence.
+  - Evidence: Sections 1-8, hook gate, and skill gate completed with artifacts and command evidence.
+- [x] All execution assets are verified in runtime `.github/` paths (not vendor-only).
+  - Evidence: Section 3 validation plus workflow additions in `.github/workflows/`.
+- [x] No unresolved blocker exists for starting Phase 2 implementation work.
+  - Evidence: `.github/agent_memory/04_blockers.md` shows no active blockers.
 
 ## Command Evidence
 - Build: `npm run build`

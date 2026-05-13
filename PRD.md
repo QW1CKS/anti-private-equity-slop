@@ -86,6 +86,13 @@
 - **Schema/runtime validation contract:** Untrusted or untyped payloads (remote blacklist JSON, storage reads, and extension message payloads) must be validated with explicit runtime guards before consumption; blacklist snapshots must pass `isValidSnapshot` before cache writes or matcher usage.
 - **Testability contract for next phases:** Domain logic should be extracted into pure helper functions with deterministic I/O and covered by isolated unit tests; side-effecting modules should stay thin orchestration layers around Chrome APIs and message transports.
 
+### 5.2.6 Security baseline
+- **Local matching and privacy posture:** Channel matching must remain local to the extension runtime and must not introduce browsing telemetry, analytics, or server-side channel checks.
+- **Minimum-permission MV3 posture:** The manifest must stay on the smallest practical MV3 permission set for the feature set in scope. For Phase 1, `storage` and `alarms` are the only extension permissions, and additional permissions require an explicit phase review before they are introduced.
+- **Secrets handling:** No hardcoded tokens, API keys, or private keys may be added to source, config, or generated artifacts. The `secrets-scanner` hook is required at session end, and high-confidence findings must block release or handoff until resolved.
+- **Dependency, license, and security scans:** The `dependency-license-checker` hook and repository security review are release blockers when they surface high-risk issues such as critical vulnerabilities, copyleft-license violations, or other findings that would weaken the extension's privacy or supply-chain posture.
+- **Security review evidence format:** Later-phase security reviews must record the review target, commands run, key findings with severity, affected files or paths, and the final disposition in the active phase checklist and action log.
+
 ## 6. Phase Breakdown (for Agentic Workflow)
 
 - **Phase 1 - Foundation:** Manifest V3 setup, permissions, basic service worker, content script scaffold

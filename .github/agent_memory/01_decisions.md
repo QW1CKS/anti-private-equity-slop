@@ -76,3 +76,23 @@
 - **Rationale:** Prevents ambiguous implementation boundaries in Phase 2+ and keeps type/runtime safety expectations measurable at checklist and CI gates.
 - **Impacts:** `PRD.md`, `AGENTS/Phase 1 - Foundation/CHECKLIST.md`, `AGENTS/ACTIVE_PHASE.md`, `AGENTS/PROGRESS_DASHBOARD.md`, `.github/agent_memory/03_actions.tsv`, `.github/agent_memory/05_handoffs.tsv`
 - **Related:** [Action ledger](./03_actions.tsv)
+
+## Security Baseline Contract Decision (2026-05-13)
+- **ID:** DEC-20260513-002
+- **Status:** Accepted
+- **Date:** 2026-05-13
+- **Context:** Section 6 required the privacy and security baseline to be explicit enough that later phases can treat it as a release gate rather than an assumption.
+- **Decision:** Extend `PRD.md` with a Phase 1 security baseline that makes local matching/no telemetry, minimum-permission MV3 posture, secrets scanning, release-blocking dependency/license/security findings, and security review evidence format explicit.
+- **Rationale:** Prevents ambiguity in security signoff and makes the future phase handoff criteria auditable from the docs alone.
+- **Impacts:** `PRD.md`, `AGENTS/Phase 1 - Foundation/CHECKLIST.md`, `AGENTS/ACTIVE_PHASE.md`, `AGENTS/PROGRESS_DASHBOARD.md`, `.github/agent_memory/03_actions.tsv`, `.github/agent_memory/05_handoffs.tsv`
+- **Related:** [Action ledger](./03_actions.tsv)
+
+## CI Hardening Gate Implementation Requirement (2026-05-13)
+- **ID:** DEC-20260513-003
+- **Status:** Accepted
+- **Date:** 2026-05-13
+- **Context:** CP3 gate needed to require implemented CI hardening tasks before handoff, not just a documented roadmap.
+- **Decision:** Implement CI hardening in Phase 1 (permissions, action SHA pinning, dependency review workflow, CodeQL workflow) and update CP3 gate wording to require implementation.
+- **Rationale:** Removes ambiguous "done" states and ensures a concrete CI security baseline before the next agent.
+- **Impacts:** `.github/workflows/build.yml`, `.github/workflows/dependency-review.yml`, `.github/workflows/codeql.yml`, `.github/workflows/README.md`, `AGENTS/Phase 1 - Foundation/CHECKLIST.md`, `AGENTS/PROGRESS_DASHBOARD.md`, `AGENTS/ACTIVE_PHASE.md`
+- **Related:** [Action ledger](./03_actions.tsv)

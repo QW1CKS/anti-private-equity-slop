@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "type": "command",
+        "bash": ".github/hooks/tool-guardian/guard-tool.sh",
+        "cwd": ".",
+        "env": {
+          "GUARD_MODE": "block"
+        },
+        "timeoutSec": 10
+      }
+    ],
+    "sessionStart": [
+      {
+        "type": "command",
+        "bash": ".github/hooks/session-logger/log-session-start.sh",
+        "cwd": ".",
+        "timeoutSec": 5
+      }
+    ],
+    "userPromptSubmitted": [
+      {
+        "type": "command",
+        "bash": ".github/hooks/session-logger/log-prompt.sh",
+        "cwd": ".",
+        "env": {
+          "LOG_LEVEL": "INFO"
+        },
+        "timeoutSec": 5
+      }
+    ],
+    "sessionEnd": [
+      {
+        "type": "command",
+        "bash": ".github/hooks/secrets-scanner/scan-secrets.sh",
+        "cwd": ".",
+        "env": {
+          "SCAN_MODE": "warn",
+          "SCAN_SCOPE": "diff"
+        },
+        "timeoutSec": 30
+      },
+      {
+        "type": "command",
+        "bash": ".github/hooks/dependency-license-checker/check-licenses.sh",
+        "cwd": ".",
+        "env": {
+          "LICENSE_MODE": "warn"
+        },
+        "timeoutSec": 60
+      },
+      {
+        "type": "command",
+        "bash": ".github/hooks/session-logger/log-session-end.sh",
+        "cwd": ".",
+        "timeoutSec": 5
+      }
+    ]
+  }
+}

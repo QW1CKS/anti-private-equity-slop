@@ -11,7 +11,7 @@
 
 | Phase | Status | Completion | Current Owner | Notes |
 |---|---|---:|---|---|
-| Phase 1 - Foundation | in_progress | 69% | `.github/agents/se-security-reviewer.agent.md` | TypeScript type/runtime baseline completed; security threat baseline checks next |
+| Phase 1 - Foundation | in_progress | 95% | `.github/agents/gem-orchestrator.agent.md` | CI hardening implemented; section 8 + gates complete; handoff readiness next |
 | Phase 2 - Blacklist API and Sync | not_started | 0% | n/a | Waits for Phase 1 exit criteria |
 | Phase 3 - UI Development | not_started | 0% | n/a | Waits for Phase 2 |
 | Phase 4 - Testing & Polish | not_started | 0% | n/a | Waits for Phase 3 |
@@ -26,16 +26,16 @@
 | Curated agents installed | complete | 9 | `.github/agents/` contains orchestrator, review, security, TS, CI, installer, curator |
 | Curated hooks installed | complete | 4 | `.github/hooks/` contains guard, secrets, logging, license hooks |
 | Curated skills installed | complete | 3 | `.github/skills/` includes TS/Jest, web testing, security review |
-| Validation workflow installed | complete | 1 | `.github/workflows/build.yml` |
+| Validation workflow installed | complete | 3 | `.github/workflows/build.yml`, `dependency-review.yml`, `codeql.yml` |
 | Phase docs normalized | complete | 5 | One README + one CHECKLIST per phase |
 
 ## Memory Health
 
 | Metric | Current | Target | Status |
 |---|---:|---:|---|
-| Decision Entries | 7 | n/a | ok |
+| Decision Entries | 8 | n/a | ok |
 | Learning Entries | 2 | n/a | ok |
-| Action Entries | 12 | append-only | ok |
+| Action Entries | 17 | append-only | ok |
 | Broken Memory Links | unknown | 0 | review pending |
 | Duplicate Entry IDs | unknown | 0 | review pending |
 
@@ -49,3 +49,6 @@
 - 2026-05-08: Phase 1 section `3) Agentic Brain Asset Curator - Installed Asset Confirmation` completed; fixed missing `playwright-tester` reference in checklist asset baseline.
 - 2026-05-08: Phase 1 section `4) API Architect - Foundation Contracts` completed; added explicit sync/message/failure boundary contract baseline to `PRD.md` and handed off to TypeScript MCP Expert.
 - 2026-05-13: Phase 1 section `5) TypeScript MCP Expert - Type and Runtime Baseline` completed; added strict TS quality gate, module boundary, runtime validation, and testability contracts in `PRD.md` and handed off to Security Reviewer.
+- 2026-05-13: Phase 1 section `6) Security Reviewer - Foundation Threat Baseline` completed; added explicit local-matching, MV3 permission, secrets-handling, release-blocker, and security evidence-format contracts in `PRD.md` and handed off to GitHub Actions Expert.
+- 2026-05-13: Phase 1 section `7) GitHub Actions Expert - CI Baseline Hardening Plan` implemented; added dependency review and CodeQL workflows and pinned actions.
+- 2026-05-13: Phase 1 section `8) Critical Thinking Reviewer - Assumption Pressure Test` completed; hook/skill gates and exit criteria documented.
