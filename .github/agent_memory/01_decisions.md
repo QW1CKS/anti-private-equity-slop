@@ -36,3 +36,43 @@
 - **Rationale:** Prevents ambiguous completion states and blocks premature handoff when build/test/lint or artifact evidence is incomplete.
 - **Impacts:** `AGENTS/Phase 1 - Foundation/CHECKLIST.md`, `AGENTS/ACTIVE_PHASE.md`, `AGENTS/PROGRESS_DASHBOARD.md`, `.github/agent_memory/03_actions.tsv`
 - **Related:** [Action ledger](./03_actions.tsv)
+
+## Canonical Phase Naming Decision (2026-05-08)
+- **ID:** DEC-20260508-002
+- **Status:** Accepted
+- **Date:** 2026-05-08
+- **Context:** PRD phase labels diverged from AGENTS phase naming in two entries (`UI/Feature Development`, `Deployment & Launch`), creating naming drift during checklist verification.
+- **Decision:** Normalize PRD phase labels to the canonical AGENTS sequence: `Phase 1 - Foundation`, `Phase 2 - Blacklist API and Sync`, `Phase 3 - UI Development`, `Phase 4 - Testing & Polish`, `Phase 5 - Deployment`.
+- **Rationale:** Keeps phase references consistent across planning, checklists, and progress reporting.
+- **Impacts:** `PRD.md`, `AGENTS/Phase 1 - Foundation/CHECKLIST.md`, `AGENTS/PROGRESS_DASHBOARD.md`
+- **Related:** [Action ledger](./03_actions.tsv)
+
+## Curated Asset Source-of-Truth Decision (2026-05-08)
+- **ID:** DEC-20260508-003
+- **Status:** Accepted
+- **Date:** 2026-05-08
+- **Context:** Section 3 validation found documentation drift: runtime curated agent list included `playwright-tester`, but Phase 1 checklist baseline omitted that path.
+- **Decision:** Treat `AGENTS/REQUIRED_CUSTOM_AGENTS.md` plus runtime `.github/agents/` as source-of-truth for curated agent reflection checks; fix checklist baseline to match this set.
+- **Rationale:** Prevents false checklist pass when curated runtime inventory and phase docs diverge.
+- **Impacts:** `AGENTS/Phase 1 - Foundation/CHECKLIST.md`, `AGENTS/ACTIVE_PHASE.md`, `AGENTS/PROGRESS_DASHBOARD.md`
+- **Related:** [Action ledger](./03_actions.tsv)
+
+## Foundation Contract Boundary Decision (2026-05-08)
+- **ID:** DEC-20260508-004
+- **Status:** Accepted
+- **Date:** 2026-05-08
+- **Context:** Section 4 required explicit, auditable baseline contracts for blacklist sync boundaries, extension message flow, and failure semantics; these constraints were implicit in runtime files but not codified in phase docs.
+- **Decision:** Define a Phase 1 contract baseline in `PRD.md` section `5.2` covering sync boundaries, message contracts, failure semantics, and in-scope/out-of-scope architecture rules.
+- **Rationale:** Creates single source-of-truth contract for Phase 2 implementation and avoids behavior drift across service worker, content script, and matcher boundaries.
+- **Impacts:** `PRD.md`, `AGENTS/Phase 1 - Foundation/CHECKLIST.md`, `AGENTS/ACTIVE_PHASE.md`, `AGENTS/PROGRESS_DASHBOARD.md`
+- **Related:** [Action ledger](./03_actions.tsv)
+
+## Type and Runtime Baseline Decision (2026-05-13)
+- **ID:** DEC-20260513-001
+- **Status:** Accepted
+- **Date:** 2026-05-13
+- **Context:** Section 5 required explicit, auditable TypeScript and runtime-quality baseline contracts for strictness, module boundaries, payload validation, and next-phase testability.
+- **Decision:** Extend `PRD.md` section `5.2` with a dedicated type/runtime baseline contract that locks strict TypeScript as a quality gate, defines `src/background`/`src/content`/`src/shared` ownership boundaries, requires runtime guard validation for untyped payloads, and codifies pure-helper testability expectations.
+- **Rationale:** Prevents ambiguous implementation boundaries in Phase 2+ and keeps type/runtime safety expectations measurable at checklist and CI gates.
+- **Impacts:** `PRD.md`, `AGENTS/Phase 1 - Foundation/CHECKLIST.md`, `AGENTS/ACTIVE_PHASE.md`, `AGENTS/PROGRESS_DASHBOARD.md`, `.github/agent_memory/03_actions.tsv`, `.github/agent_memory/05_handoffs.tsv`
+- **Related:** [Action ledger](./03_actions.tsv)

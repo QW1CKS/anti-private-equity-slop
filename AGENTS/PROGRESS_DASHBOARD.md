@@ -11,7 +11,7 @@
 
 | Phase | Status | Completion | Current Owner | Notes |
 |---|---|---:|---|---|
-| Phase 1 - Foundation | in_progress | 30% | `.github/agents/agentic-brain-installer.agent.md` | Gem Orchestrator phase-control section completed; installer integrity checks next |
+| Phase 1 - Foundation | in_progress | 69% | `.github/agents/se-security-reviewer.agent.md` | TypeScript type/runtime baseline completed; security threat baseline checks next |
 | Phase 2 - Blacklist API and Sync | not_started | 0% | n/a | Waits for Phase 1 exit criteria |
 | Phase 3 - UI Development | not_started | 0% | n/a | Waits for Phase 2 |
 | Phase 4 - Testing & Polish | not_started | 0% | n/a | Waits for Phase 3 |
@@ -33,9 +33,9 @@
 
 | Metric | Current | Target | Status |
 |---|---:|---:|---|
-| Decision Entries | 2 | n/a | ok |
-| Learning Entries | 1 | n/a | ok |
-| Action Entries | 7 | append-only | ok |
+| Decision Entries | 7 | n/a | ok |
+| Learning Entries | 2 | n/a | ok |
+| Action Entries | 12 | append-only | ok |
 | Broken Memory Links | unknown | 0 | review pending |
 | Duplicate Entry IDs | unknown | 0 | review pending |
 
@@ -45,3 +45,7 @@
 - 2026-05-01: Phase docs normalized for Chrome MV3 extension workflow.
 - 2026-05-01: Curated agents/hooks/skills copied into `.github/` runtime locations.
 - 2026-05-08: Phase 1 section `1) Gem Orchestrator - Phase Control` completed with defined checkpoints, ownership sequence, and rollback/evidence contract.
+- 2026-05-08: Phase 1 section `2) Agentic Brain Installer - Framework State Integrity` completed and PRD phase naming aligned to canonical phase labels.
+- 2026-05-08: Phase 1 section `3) Agentic Brain Asset Curator - Installed Asset Confirmation` completed; fixed missing `playwright-tester` reference in checklist asset baseline.
+- 2026-05-08: Phase 1 section `4) API Architect - Foundation Contracts` completed; added explicit sync/message/failure boundary contract baseline to `PRD.md` and handed off to TypeScript MCP Expert.
+- 2026-05-13: Phase 1 section `5) TypeScript MCP Expert - Type and Runtime Baseline` completed; added strict TS quality gate, module boundary, runtime validation, and testability contracts in `PRD.md` and handed off to Security Reviewer.

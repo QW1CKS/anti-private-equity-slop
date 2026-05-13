@@ -58,13 +58,41 @@
 - **Data Paths:** N/A
 - **Docs Paths:** `docs/`
 
+## 5.2 Foundation Contract Baseline (Phase 1)
+
+### 5.2.1 Blacklist sync boundaries
+- **Remote source boundary:** Service worker fetches snapshot only from `BLACKLIST_RAW_URL` (`src/shared/config.ts`) with ETag conditional requests (`src/background/blacklist-sync.ts`).
+- **Local cache boundary:** Snapshot, ETag, and sync timestamp are persisted only in `chrome.storage.local` under `STORAGE_KEYS.BLACKLIST`, `STORAGE_KEYS.ETAG`, and `STORAGE_KEYS.LAST_SYNC`.
+- **Matcher consumer boundary:** Matching logic (`src/shared/matcher.ts`) consumes `BlacklistSnapshot` only and does not perform network calls.
+
+### 5.2.2 Extension message boundaries
+- **Channel check request:** Content script sends `CHECK_CHANNEL` with `{ channelId?, channelName?, handle?, customUrl? }`.
+- **Sync triggers:** Background sync is triggered by `BLACKLIST_SYNC`, scheduled alarms (`blacklist-sync`, `blacklist-sync-initial`), and browser startup.
+- **Result flow:** Service worker returns check result payload (`isBlacklisted`, optional `channelName`/`reason`) and emits `BLACKLIST_UPDATED` to YouTube tabs after successful snapshot updates.
+
+### 5.2.3 Failure semantics
+- **Network failure:** Keep existing cached snapshot if available and continue non-blocking local matching behavior.
+- **Invalid snapshot:** Reject malformed remote payloads via runtime schema validation (`isValidSnapshot`) and fall back to bundled `blacklist.json` when possible.
+- **Stale cache:** Treat stale cache as readable for matching while background sync attempts revalidation.
+- **Service worker/message failure:** Content script retries `CHECK_CHANNEL`, then falls back to local storage / direct snapshot fetch path.
+
+### 5.2.4 In-scope and out-of-scope architecture constraints
+- **In-scope:** Local matching in extension runtime, read-only anonymous snapshot fetches, warning-only UX.
+- **Out-of-scope:** Blocking/redirect behavior, browsing telemetry, analytics, or server-side channel check requests.
+
+### 5.2.5 Type and runtime baseline
+- **TypeScript strictness gate:** `tsconfig.json` must keep `"strict": true` for Phase 1+ quality gates. Phase closure cannot rely on lowering compiler strictness to pass.
+- **Runtime module boundaries:** `src/background/` owns browser APIs, storage writes, and network sync; `src/content/` owns YouTube DOM detection/banner behavior and message requests; `src/shared/` owns pure types, schema guards, normalization, and matcher logic with no Chrome API or DOM side effects.
+- **Schema/runtime validation contract:** Untrusted or untyped payloads (remote blacklist JSON, storage reads, and extension message payloads) must be validated with explicit runtime guards before consumption; blacklist snapshots must pass `isValidSnapshot` before cache writes or matcher usage.
+- **Testability contract for next phases:** Domain logic should be extracted into pure helper functions with deterministic I/O and covered by isolated unit tests; side-effecting modules should stay thin orchestration layers around Chrome APIs and message transports.
+
 ## 6. Phase Breakdown (for Agentic Workflow)
 
 - **Phase 1 - Foundation:** Manifest V3 setup, permissions, basic service worker, content script scaffold
 - **Phase 2 - Blacklist API and Sync:** Blacklist API client, channel detection, normalization, local matcher, cache layer
-- **Phase 3 - UI/Feature Development:** Warning banner, dismissal, i18n, accessibility
+- **Phase 3 - UI Development:** Warning banner, dismissal, i18n, accessibility
 - **Phase 4 - Testing & Polish:** Unit tests, integration tests, edge cases, security hardening
-- **Phase 5 - Deployment & Launch:** Chrome Web Store submission, API hosting, maintenance
+- **Phase 5 - Deployment:** Chrome Web Store submission, API hosting, maintenance
 
 ## 6.1 Phase Adaptation Rules
 - **Skip Phases:** None
