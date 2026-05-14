@@ -57,7 +57,7 @@ function isLikelyPlaceholder(raw?: string): boolean {
   const s = raw.trim();
   if (!s) return false;
   // uppercase identifiers like GUIDED_HELP or ALL_CAPS_WITH_UNDERSCORES
-  if (/^[A-Z0-9_\-]+$/.test(s) && s === s.toUpperCase() && s.includes('_')) return true;
+  if (/^[A-Z0-9_-]+$/.test(s) && s === s.toUpperCase() && s.includes('_')) return true;
   // percent-encoded or base64-like strings
   if (/^[A-Za-z0-9+/=%-]{12,}$/.test(s)) return true;
   // strings that contain lots of percent encodings or equals signs
@@ -466,7 +466,7 @@ export function isChannelPage(): boolean {
 }
 
 // Get both channelId and channelName from page in a single pass to avoid mismatches
-export function getChannelInfoFromPage(): { channelId?: string; channelName?: string } | null {
+export function getChannelInfoFromPage(): { channelId?: string; channelName?: string; handle?: string; customUrl?: string } | null {
   // 1) Meta tags
   try {
     const metaChannel = document.querySelector('meta[itemprop="channelId"]') as HTMLMetaElement | null;
@@ -488,7 +488,6 @@ export function getChannelInfoFromPage(): { channelId?: string; channelName?: st
   // Prefer anchors inside the `ytd-video-owner-renderer` or `#meta-contents`
   // container to avoid accidentally picking unrelated channel links elsewhere
   // in the DOM (which caused 'TLDR News Global' / incorrect picks).
-  let ownerAnchorHref: string | undefined;
   let ownerAnchorText: string | undefined;
   let foundId: string | undefined;
   let foundHandle: string | undefined;
@@ -511,7 +510,6 @@ export function getChannelInfoFromPage(): { channelId?: string; channelName?: st
         if (!/^\/(?:@|channel\/)/.test(href)) continue;
         // Debug: log the element, href and text being picked up
         console.debug('APE debug: ownerAnchor', a, 'href:', href, 'text:', text);
-        ownerAnchorHref = href;
         const cleaned = cleanChannelName(text);
         // Try to extract id/handle/custom from this anchor
         let cid, handle, custom;
@@ -520,7 +518,9 @@ export function getChannelInfoFromPage(): { channelId?: string; channelName?: st
           cid = extractChannelIdFromUrl(u.pathname);
           handle = extractHandleFromUrl(u.pathname);
           custom = extractCustomUrlFromUrl(u.pathname);
-        } catch {}
+        } catch (e) {
+          console.debug('Failed to extract from URL:', e);
+        }
         if (cid) foundId = cid;
         if (handle) foundHandle = handle;
         if (custom) foundCustom = custom;
@@ -542,17 +542,17 @@ export function getChannelInfoFromPage(): { channelId?: string; channelName?: st
         break;
       }
     }
-  } catch {
-    // ignore
+  } catch (e) {
+    console.debug('Channel extraction error:', e);
   }
 
   // Only return channelName if paired with a valid id/handle/custom
   if ((foundId || foundHandle || foundCustom) && ownerAnchorText) {
-    return { channelId: foundId, channelName: ownerAnchorText, handle: foundHandle, customUrl: foundCustom } as any;
+    return { channelId: foundId, channelName: ownerAnchorText, handle: foundHandle, customUrl: foundCustom };
   }
   // If we have a valid id/handle/custom but no name, still return the id/handle/custom
   if (foundId || foundHandle || foundCustom) {
-    return { channelId: foundId, handle: foundHandle, customUrl: foundCustom } as any;
+    return { channelId: foundId, handle: foundHandle, customUrl: foundCustom };
   }
 
   // 3) Try ytInitialData paths
@@ -612,10 +612,10 @@ export function getChannelInfoFromPage(): { channelId?: string; channelName?: st
         if (cid && cid.startsWith('UC')) {
           const raw = a.textContent || '';
           const cname = cleanChannelName(raw) || a.textContent?.trim() || undefined;
-          if (!isGenericLabel(cname)) return { channelId: cid, channelName: cname } as any;
+          if (!isGenericLabel(cname)) return { channelId: cid, channelName: cname } as unknown as { channelId: string; channelName?: string };
         }
-      } catch {
-        // ignore invalid URLs
+      } catch (e) {
+        console.debug('ignore invalid URLs:', e);
       }
     }
   } catch {

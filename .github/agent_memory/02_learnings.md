@@ -27,6 +27,12 @@
 - Pair this with sender trust checks in service-worker message handlers so privileged routes (`OPEN_DETAILS_PAGE`, `CHECK_CHANNEL`) are bounded by expected origin context.
 - Related: [Action ledger](./03_actions.tsv)
 
+## Session-scoped dismissal for SPA UX trust
+- **ID:** LEA-20260514-005
+- For YouTube SPA flows, persistent or time-window dismissal can hide warnings longer than user intent; using an in-memory session dismissal map and clearing it on `locationchange` preserves reversibility while still reducing repeated-banner noise on the current route.
+- Validate this contract with paired tests: state-level semantics (set/read/reset) plus browser-flow assertions that dismiss suppresses on the same route but warning returns after navigation reset.
+- Related: [Action ledger](./03_actions.tsv)
+
 ## Learning Entry Template
 - **ID:** LEA-YYYYMMDD-XXX
 - **Date:** TBD

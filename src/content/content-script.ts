@@ -4,8 +4,6 @@
  */
 
 import {
-  getChannelIdFromPage,
-  getChannelNameFromPage,
   getChannelInfoFromPage,
   getChannelInfoFromUrl,
   getVideoIdFromUrl,
@@ -13,7 +11,7 @@ import {
   isWatchPage,
   isChannelPage,
 } from './youtube-detector.js';
-import { showWarningBanner, removeInjectedBanner } from './warning-banner.js';
+import { showWarningBanner, removeInjectedBanner, clearSessionDismissals } from './warning-banner.js';
 import { BLACKLIST_RAW_URL } from '../shared/config.js';
 import { STORAGE_KEYS } from '../shared/types.js';
 import type { ChannelCheckMessage } from '../shared/types.js';
@@ -29,27 +27,6 @@ let navigationObserverInitialized = false;
 let locationChangePatched = false;
 let extensionContextInvalidatedUntil = 0;
 
-const OWNER_ANCHOR_SELECTORS = [
-  '#meta-contents ytd-video-owner-renderer a[href^="/@"]',
-  '#meta-contents ytd-video-owner-renderer a[href*="/channel/"]',
-  'ytd-video-owner-renderer a[href^="/@"]',
-  'ytd-video-owner-renderer a[href*="/channel/"]',
-  'ytd-channel-name a[href^="/@"]',
-  'ytd-channel-name a[href*="/channel/"]',
-  'a.yt-simple-endpoint[href^="/@"]',
-  'a.yt-simple-endpoint[href*="/channel/"]',
-] as const;
-
-function findOwnerAnchor(): HTMLAnchorElement | null {
-  for (const selector of OWNER_ANCHOR_SELECTORS) {
-    const candidate = document.querySelector<HTMLAnchorElement>(selector);
-    if (candidate) {
-      return candidate;
-    }
-  }
-  return null;
-}
-
 // Listen for URL changes (YouTube SPA navigation)
 function setupNavigationObserver(): void {
   if (navigationObserverInitialized) {
@@ -62,9 +39,10 @@ function setupNavigationObserver(): void {
   let navigationTimeout: number | null = null;
 
   // Listen for blacklist updates from service worker
-  chrome.runtime.onMessage.addListener((message: any) => {
+  chrome.runtime.onMessage.addListener((message: Record<string, unknown>) => {
     if (message && message.type === 'BLACKLIST_UPDATED') {
-      console.log('APE: Blacklist updated to version', message.payload?.version, '- clearing local cache');
+      const payload = message.payload as Record<string, unknown> | undefined;
+      console.log('APE: Blacklist updated to version', payload?.version, '- clearing local cache');
       // Clear any cached snapshot in content script by invalidating the storage read cache
       // The next check will re-read from storage which should have the new version
       lastBlacklistCheckVersion = null;
@@ -81,8 +59,8 @@ function setupNavigationObserver(): void {
     }
 
     type PushStateFn = (data?: unknown, unused?: string, url?: string | URL | null) => void;
-    const _push = history.pushState as unknown as PushStateFn;
-    const _replace = history.replaceState as unknown as PushStateFn;
+    const _push = history.pushState as PushStateFn;
+    const _replace = history.replaceState as PushStateFn;
     (history as unknown as { pushState: PushStateFn }).pushState = function (data?: unknown, unused?: string, url?: string | URL | null) {
       _push.call(this, data, unused, url);
       window.dispatchEvent(new Event('locationchange'));
@@ -99,6 +77,9 @@ function setupNavigationObserver(): void {
   const handleLocationChange = () => {
     if (location.href === lastHandledUrl) return;
     lastHandledUrl = location.href;
+
+    // Dismissal is session-scoped and should reset on navigation.
+    clearSessionDismissals();
 
     // Clear any injected banner UI from previous navigation (DOM-only clear)
     try { removeInjectedBanner(); } catch (e) { /* ignore */ }
@@ -201,9 +182,9 @@ function extractChannelInfo(): {
 
   // Combine all sources, but only trust channelName if paired with a valid id/handle/customUrl
   const channelId = urlInfo?.channelId || pageInfo?.channelId;
-  const handle = urlInfo?.handle || (pageInfo as any)?.handle;
-  const customUrl = urlInfo?.customUrl || (pageInfo as any)?.customUrl;
-  const channelName = (pageInfo && (pageInfo as any).channelName) || void 0;
+  const handle = (urlInfo?.handle || (pageInfo as Record<string, unknown>)?.handle) as string | undefined;
+  const customUrl = (urlInfo?.customUrl || (pageInfo as Record<string, unknown>)?.customUrl) as string | undefined;
+  const channelName = ((pageInfo as Record<string, unknown>)?.channelName as string | undefined) || void 0;
 
   // Only return if we have a valid id/handle/customUrl
   if (!channelId && !handle && !customUrl) {
@@ -279,7 +260,7 @@ async function checkChannel(channelInfo: {
           channelInfo.handle || channelInfo.channelId || (response.channelName || channelInfo.channelName || 'Unknown Channel')
         );
       } else {
-        try { removeInjectedBanner(); } catch (e) { /* ignore */ }
+        try { removeInjectedBanner(); } catch (e) { console.debug('removeInjectedBanner:', e); }
       }
       return;
     } catch (error) {
@@ -287,14 +268,16 @@ async function checkChannel(channelInfo: {
       // If the extension context was invalidated (common during dev reloads),
       // back off and avoid repeated attempts for a short period.
       try {
-        const msg = (error && (error as any).message) || String(error);
+        const msg = (error && (error instanceof Error ? error.message : String(error))) || String(error);
         if (typeof msg === 'string' && msg.includes('Extension context invalidated')) {
           // Back off for 30s
           extensionContextInvalidatedUntil = Date.now() + 30_000;
           console.warn('Extension context invalidated detected; backing off for 30s');
           break;
         }
-      } catch {}
+      } catch (e) {
+        console.debug('Extension context check error:', e);
+      }
       // If this was the last attempt, break and try fallback
       if (attempts >= maxAttempts)
         break;
@@ -387,7 +370,7 @@ async function tryFallbackCheck(channelInfo: {
 
     const entries = Array.isArray(snapshot?.entries) ? snapshot.entries : [];
 
-    const normalize = (s: any) => {
+    const normalize = (s: string | unknown): string => {
       if (typeof s !== 'string') return '';
       let t = s.replace(/\s+/g, ' ').trim();
       const idx = t.search(/\bsubscribers\b/i);
@@ -403,7 +386,7 @@ async function tryFallbackCheck(channelInfo: {
       }
       // match by handle (case-insensitive)
       if (channelInfo.handle && Array.isArray(entry.handles)) {
-        const handles = entry.handles.map((h: string) => String(h).toLowerCase());
+        const handles = entry.handles.map((h: unknown) => String(h).toLowerCase());
         if (handles.includes(String(channelInfo.handle).toLowerCase())) {
           return { isBlacklisted: true, channelName: entry.channelName, reason: entry.reason };
         }
@@ -438,55 +421,6 @@ function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Wait for the owner anchor to be present and stable within the meta/owner area
-function waitForOwnerAnchor(timeoutMs = 2000): Promise<boolean> {
-  const start = Date.now();
-  return new Promise(resolve => {
-    let lastHref: string | null = null;
-    let lastText: string | null = null;
-    let stableSince = 0;
-
-    const check = () => {
-      try {
-        const el = findOwnerAnchor();
-        if (el) {
-          const href = el.getAttribute('href') || '';
-          const text = (el.textContent || '').trim();
-
-          // If href and text are stable for at least 250ms, consider it ready
-          if (href === lastHref && text === lastText) {
-            if (!stableSince) stableSince = Date.now();
-            else if (Date.now() - stableSince >= 250) return resolve(true);
-          } else {
-            lastHref = href;
-            lastText = text;
-            stableSince = 0;
-          }
-
-          // As a fallback, accept visible elements even if not yet stable
-          try {
-            const rects = el.getClientRects();
-            const visible = rects && rects.length > 0 && Array.from(rects).some(r => r.width > 0 && r.height > 0);
-            if (visible && (href || text) && Date.now() - start > 400) {
-              // wait at least a short time so we don't pick up mid-replacement
-              return resolve(true);
-            }
-          } catch {
-            // ignore getClientRects errors
-          }
-        }
-      } catch {
-        // ignore
-      }
-
-      if (Date.now() - start > timeoutMs) return resolve(false);
-      setTimeout(check, 100);
-    };
-
-    check();
-  });
-}
-
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', setupNavigationObserver);
@@ -513,12 +447,14 @@ async function getCachedSnapshotFromStorage(): Promise<unknown | null> {
   } catch (err) {
     console.warn('getCachedSnapshotFromStorage failed:', err);
     try {
-      const msg = (err && (err as any).message) || String(err);
+      const msg = (err && (err instanceof Error ? err.message : String(err))) || String(err);
       if (typeof msg === 'string' && msg.includes('Extension context invalidated')) {
         extensionContextInvalidatedUntil = Date.now() + 30_000;
         console.warn('Extension context invalidated detected while reading storage; backing off for 30s');
       }
-    } catch {}
+    } catch (e) {
+      console.debug('Storage check error:', e);
+    }
     return null;
   }
 }
@@ -529,7 +465,7 @@ function checkSnapshotForMatch(snapshot: unknown, channelInfo: { channelId?: str
     if (!isValidSnapshot(snapshot)) return null;
     const entries = Array.isArray(snapshot?.entries) ? snapshot.entries : [];
     console.debug('APE debug: checkSnapshotForMatch checking', entries.length, 'entries against', channelInfo);
-    const normalize = (s: any) => {
+    const normalize = (s: unknown): string => {
       if (typeof s !== 'string') return '';
       let t = s.replace(/\s+/g, ' ').trim();
       const idx = t.search(/\bsubscribers\b/i);
@@ -545,7 +481,7 @@ function checkSnapshotForMatch(snapshot: unknown, channelInfo: { channelId?: str
         return { isBlacklisted: true, channelName: entry.channelName, reason: entry.reason };
       }
       if (channelInfo.handle && Array.isArray(entry.handles)) {
-        const handles = entry.handles.map((h: string) => String(h).toLowerCase());
+        const handles = entry.handles.map((h: unknown) => String(h).toLowerCase());
         const handleLower = String(channelInfo.handle).toLowerCase();
         console.debug('APE debug: handle check - handles array:', handles, 'looking for:', handleLower, 'includes result:', handles.includes(handleLower));
         if (handles.includes(handleLower)) {

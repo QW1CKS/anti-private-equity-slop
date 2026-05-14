@@ -92,24 +92,7 @@ async function fetchWithETag(
 }
 
 // Verify signature (simplified - in production use proper crypto)
-async function verifySignature(
-  data: unknown,
-  _signature: string,
-  _publicKey: string
-): Promise<boolean> {
-  // TODO: Implement proper Ed25519 or RSA signature verification
-  // For now, just check signature format
-  if (!_signature || _signature.length < 10) {
-    return false;
-  }
-  
-  // Placeholder: accept any signature for demo
-  // Real implementation would:
-  // 1. Fetch public key from API_ENDPOINTS.SIGNATURE_PUBLIC_KEY
-  // 2. Verify signature using Web Crypto API
-  console.log('Signature verification (placeholder):', _signature.substring(0, 20) + '...');
-  return true;
-}
+// Note: verifySignature implementation pending - use proper Ed25519 or RSA in production
 
 // Fetch the raw blacklist JSON from a GitHub raw URL (configured in src/shared/config.ts)
 async function fetchSnapshotFromRawUrl(): Promise<BlacklistSnapshot | null> {
@@ -205,7 +188,7 @@ export async function getCachedVersion(): Promise<string | null> {
 }
 
 // Sync blacklist from remote
-export async function syncBlacklist(force = false): Promise<{
+export async function syncBlacklist(_force = false): Promise<{
   success: boolean;
   updated: boolean;
   cached: boolean;

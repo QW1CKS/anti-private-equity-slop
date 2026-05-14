@@ -1,36 +1,20 @@
 /** @jest-environment jsdom */
 
 import {
+  clearSessionDismissals,
   clearBannerState,
   isBannerVisible,
   removeInjectedBanner,
   showWarningBanner,
 } from '../../src/content/warning-banner';
 
-type StorageRecord = Record<string, unknown>;
-
-const STORAGE_KEY = 'banner-state';
-
 function createChromeMock() {
-  const storage: StorageRecord = {};
   const sendMessage = jest.fn().mockResolvedValue(undefined);
 
   return {
-    storage,
     chrome: {
       runtime: {
         sendMessage,
-      },
-      storage: {
-        local: {
-          get: jest.fn(async (key: string) => ({ [key]: storage[key] })),
-          set: jest.fn(async (values: StorageRecord) => {
-            Object.assign(storage, values);
-          }),
-          remove: jest.fn(async (key: string) => {
-            delete storage[key];
-          }),
-        },
       },
     },
     sendMessage,
@@ -82,7 +66,7 @@ describe('warning banner browser-like flows', () => {
     expect(document.getElementById('pew-warning-banner')).toBeNull();
   });
 
-  it('suppresses reappearance after explicit dismiss for the same channel key', async () => {
+  it('suppresses in-page reappearance after explicit dismiss for the same channel key', async () => {
     await showWarningBanner('Dismissed Channel', 'Ownership warning', '@dismissed');
     const dismissButton = getShadowElement('#pew-dismiss');
 
@@ -93,9 +77,12 @@ describe('warning banner browser-like flows', () => {
 
     expect(isBannerVisible()).toBe(false);
 
+    // Simulate SPA navigation reset handled by content script.
+    clearSessionDismissals();
+
     await showWarningBanner('Dismissed Channel', 'Ownership warning', '@dismissed');
 
-    expect(isBannerVisible()).toBe(false);
+    expect(isBannerVisible()).toBe(true);
   });
 
   it('close action hides the UI without persisting dismissal', async () => {
@@ -142,20 +129,19 @@ describe('warning banner browser-like flows', () => {
     expect(message.textContent).toContain('Channel Route Channel');
   });
 
-  it('stores and reads dismissal data in bounded banner storage format', async () => {
-    const chromeStorage = (global as unknown as {
-      chrome: { storage: { local: { get: jest.Mock } } };
-    }).chrome.storage.local;
-
-    await showWarningBanner('Storage Channel', 'Ownership warning', '@storage-channel');
+  it('dismissal does not carry to a new route once navigation clears session state', async () => {
+    await showWarningBanner('Route A Channel', 'Ownership warning', '@route-a');
     getShadowElement('#pew-dismiss').click();
     jest.advanceTimersByTime(300);
     await flush();
 
-    await showWarningBanner('Storage Channel', 'Ownership warning', '@storage-channel');
-
-    const stored = await chromeStorage.get(STORAGE_KEY);
-    expect(stored[STORAGE_KEY]).toBeDefined();
+    await showWarningBanner('Route A Channel', 'Ownership warning', '@route-a');
     expect(isBannerVisible()).toBe(false);
+
+    removeInjectedBanner();
+    clearSessionDismissals();
+
+    await showWarningBanner('Route B Channel', 'Ownership warning', '@route-a');
+    expect(isBannerVisible()).toBe(true);
   });
 });

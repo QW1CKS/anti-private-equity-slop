@@ -4,119 +4,43 @@
 
 import { getMessage } from './i18n.js';
 
-interface DismissalEntry {
-  dismissedAt: number;
-}
-
-type DismissedChannels = Record<string, DismissalEntry>;
-
 type BannerVisibilityState = 'hidden' | 'visible' | 'exiting';
 
-// Banner storage shape (per-channel dismissals)
-interface BannerStorage {
-  dismissedChannels?: DismissedChannels;
-}
-
-// Storage key
-const BANNER_STORAGE_KEY = 'banner-state';
-
-// Default suppress duration: 4 hours
-const SUPPRESS_DURATION_MS = 4 * 60 * 60 * 1000;
-const MAX_DISMISSED_CHANNELS = 500;
+const sessionDismissedChannels = new Set<string>();
 
 let bannerElement: HTMLElement | null = null;
 let bannerVisibilityState: BannerVisibilityState = 'hidden';
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
-
-function pruneDismissedChannels(dismissedChannels: DismissedChannels, now = Date.now()): DismissedChannels {
-  const validEntries: Array<[string, DismissalEntry]> = Object.entries(dismissedChannels)
-    .filter(([, entry]) => Number.isFinite(entry?.dismissedAt) && now - entry.dismissedAt <= SUPPRESS_DURATION_MS)
-    .sort((a, b) => b[1].dismissedAt - a[1].dismissedAt)
-    .slice(0, MAX_DISMISSED_CHANNELS);
-
-  return Object.fromEntries(validEntries);
-}
-
-async function getBannerStorage(): Promise<BannerStorage> {
-  try {
-    const result = await chrome.storage.local.get(BANNER_STORAGE_KEY);
-    const stored = result[BANNER_STORAGE_KEY] as unknown;
-    if (!isRecord(stored)) {
-      return {};
-    }
-
-    const dismissedChannels = isRecord(stored.dismissedChannels)
-      ? Object.fromEntries(
-          Object.entries(stored.dismissedChannels)
-            .filter(([, value]) => isRecord(value) && Number.isFinite(value.dismissedAt))
-            .map(([channelKey, value]) => {
-              const dismissedAt = Number((value as Record<string, unknown>).dismissedAt);
-              return [channelKey, { dismissedAt }];
-            })
-        )
-      : undefined;
-
-    return {
-      dismissedChannels,
-    };
-  } catch (err) {
-    console.warn('Failed to read banner storage (extension context may be invalidated):', err);
-    return {};
-  }
-}
-
-async function saveBannerStorage(storage: BannerStorage): Promise<void> {
-  try {
-    await chrome.storage.local.set({ [BANNER_STORAGE_KEY]: storage });
-  } catch (err) {
-    console.warn('Failed to save banner storage (extension context may be invalidated):', err);
-  }
+function normalizeChannelKey(channelKey?: string): string {
+  return (channelKey || '').trim().toLowerCase();
 }
 
 async function isChannelDismissed(channelKey?: string): Promise<boolean> {
-  if (!channelKey) return false;
-  const storage = await getBannerStorage();
-  const entry = storage.dismissedChannels?.[channelKey];
-  if (!entry) return false;
-
-  const now = Date.now();
-  const pruned = pruneDismissedChannels(storage.dismissedChannels || {}, now);
-  const isSuppressed = Boolean(pruned[channelKey]);
-  const wasPruned = JSON.stringify(pruned) !== JSON.stringify(storage.dismissedChannels || {});
-
-  if (wasPruned) {
-    storage.dismissedChannels = pruned;
-    await saveBannerStorage(storage);
+  const normalizedKey = normalizeChannelKey(channelKey);
+  if (!normalizedKey) {
+    return false;
   }
 
-  return isSuppressed;
+  return sessionDismissedChannels.has(normalizedKey);
 }
 
 async function setChannelDismissed(channelKey?: string): Promise<void> {
-  if (!channelKey) return;
-  const storage = await getBannerStorage();
-  storage.dismissedChannels = storage.dismissedChannels || {};
-  storage.dismissedChannels[channelKey] = { dismissedAt: Date.now() };
-  storage.dismissedChannels = pruneDismissedChannels(storage.dismissedChannels);
-  await saveBannerStorage(storage);
+  const normalizedKey = normalizeChannelKey(channelKey);
+  if (!normalizedKey) {
+    return;
+  }
+
+  sessionDismissedChannels.add(normalizedKey);
 }
 
 async function clearChannelDismissed(channelKey?: string): Promise<void> {
+  const normalizedKey = normalizeChannelKey(channelKey);
   if (!channelKey) {
-    try {
-      await chrome.storage.local.remove(BANNER_STORAGE_KEY);
-    } catch (err) {
-      console.warn('clearBannerState: failed to remove storage key:', err);
-    }
+    sessionDismissedChannels.clear();
     return;
   }
-  const storage = await getBannerStorage();
-  if (storage.dismissedChannels && storage.dismissedChannels[channelKey]) {
-    delete storage.dismissedChannels[channelKey];
-    await saveBannerStorage(storage);
+  if (normalizedKey) {
+    sessionDismissedChannels.delete(normalizedKey);
   }
 }
 
@@ -407,7 +331,7 @@ function createBannerElement(): HTMLElement {
 
 // Show the warning banner
 export async function showWarningBanner(channelName: string, reason?: string, channelKey?: string): Promise<void> {
-  // If this channel was explicitly dismissed recently, do not show
+  // If this channel was explicitly dismissed in this page session, do not show.
   if (await isChannelDismissed(channelKey)) {
     console.log('Banner is suppressed for', channelKey, 'not showing');
     return;
@@ -504,6 +428,11 @@ export async function clearBannerState(): Promise<void> {
   try { await hideWarningBanner(false); } catch (e) { /* ignore */ }
 }
 
+// Reset per-session dismissal state, typically on SPA route transitions.
+export function clearSessionDismissals(): void {
+  sessionDismissedChannels.clear();
+}
+
 // Remove injected banner element without updating persisted dismissal state.
 // Useful when the page navigates (SPA) and we need to clear DOM-only UI.
 export function removeInjectedBanner(): void {
@@ -519,7 +448,10 @@ export function removeInjectedBanner(): void {
 }
 
 export const __testing = {
-  pruneDismissedChannels,
-  SUPPRESS_DURATION_MS,
-  MAX_DISMISSED_CHANNELS,
+  isChannelDismissed,
+  setChannelDismissed,
+  clearChannelDismissed,
+  clearSessionDismissals,
+  normalizeChannelKey,
+  getSessionDismissedCount: () => sessionDismissedChannels.size,
 };
