@@ -146,3 +146,13 @@
 - **Rationale:** Allows the phase to close with auditable CI evidence without conflating pre-existing legacy lint issues with Phase 2 regressions.
 - **Impacts:** `AGENTS/Phase 2 - Blacklist API and Sync/CHECKLIST.md`, `AGENTS/ACTIVE_PHASE.md`, `AGENTS/PROGRESS_DASHBOARD.md`, `.github/agent_memory/03_actions.tsv`
 - **Related:** [Action ledger](./03_actions.tsv)
+
+## Phase 3 UI Execution Control Decision (2026-05-14)
+- **ID:** DEC-20260514-001
+- **Status:** Accepted
+- **Date:** 2026-05-14
+- **Context:** Phase 3 started without a codified checkpoint map linking UI behavior, accessibility, SPA resilience, and evidence gates to the agent execution order.
+- **Decision:** Use a five-checkpoint UI execution-control model (injection, behavior, accessibility, resilience, verification) with explicit owner/reviewer sequence and rollback triggers before implementation tasks proceed.
+- **Rationale:** Prevents ambiguous UI completion states and reduces regression risk when warning-banner behavior changes under YouTube SPA transitions.
+- **Impacts:** `AGENTS/Phase 3 - UI Development/CHECKLIST.md`, `AGENTS/ACTIVE_PHASE.md`, `AGENTS/PROGRESS_DASHBOARD.md`, `.github/agent_memory/03_actions.tsv`, `.github/agent_memory/05_handoffs.tsv`
+- **Related:** [Action ledger](./03_actions.tsv)

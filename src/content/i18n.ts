@@ -9,13 +9,16 @@ const catalogs: Record<string, Record<string, string>> = {
   en: enMessages,
 };
 
+const FALLBACK_LOCALE = 'en';
+
 // Current locale (default to 'en' for now)
 let currentLocale = 'en';
 
 // Get a message by key with optional parameter substitution
 export function getMessage(key: string, params?: Record<string, string>): string {
-  const catalog = catalogs[currentLocale] || catalogs['en'];
-  let message = catalog[key] || key;
+  const catalog = catalogs[currentLocale] || catalogs[FALLBACK_LOCALE];
+  const fallbackCatalog = catalogs[FALLBACK_LOCALE];
+  let message = catalog[key] || fallbackCatalog[key] || key;
   
   // Replace parameters like {channel}
   if (params) {

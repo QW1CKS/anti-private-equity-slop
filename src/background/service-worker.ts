@@ -52,7 +52,7 @@ chrome.runtime.onMessage.addListener(
     // Keep the async message channel open and ensure any handler errors
     // are returned as a safe service-unavailable response instead of
     // letting an exception crash the service worker.
-    handleMessage(message)
+    handleMessage(message, sender)
       .then((res) => sendResponse(res))
       .catch((err) => {
         console.error('Service worker message handler failed:', err);
@@ -62,8 +62,13 @@ chrome.runtime.onMessage.addListener(
   }
 );
 
-async function handleMessage(message: Message): Promise<unknown> {
+async function handleMessage(message: Message, sender: RuntimeMessageSender): Promise<unknown> {
   try {
+    if (!isTrustedSender(message, sender)) {
+      console.warn('Rejected runtime message from untrusted sender for type:', message?.type, sender?.url || sender?.tab?.url || 'unknown-url');
+      return { success: false, error: 'forbidden' };
+    }
+
     switch (message.type) {
       case 'PING':
         return { ok: true, ts: Date.now() };
@@ -203,4 +208,26 @@ chrome.runtime.onStartup.addListener(() => {
 
 function getErrorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+function isTrustedSender(message: Message, sender: RuntimeMessageSender): boolean {
+  if (!message || typeof message.type !== 'string') {
+    return false;
+  }
+
+  // Guard against forged cross-extension sender metadata.
+  if (sender?.id && sender.id !== chrome.runtime.id) {
+    return false;
+  }
+
+  if (message.type === 'PING' || message.type === 'BLACKLIST_SYNC') {
+    return true;
+  }
+
+  if (message.type === 'CHECK_CHANNEL' || message.type === 'OPEN_DETAILS_PAGE') {
+    const senderUrl = sender?.url || sender?.tab?.url || '';
+    return /^https:\/\/(?:www\.)?youtube\.com\//i.test(senderUrl);
+  }
+
+  return true;
 }

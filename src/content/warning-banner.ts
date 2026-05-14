@@ -4,10 +4,17 @@
 
 import { getMessage } from './i18n.js';
 
-// New banner storage shape (per-channel dismissals)
+interface DismissalEntry {
+  dismissedAt: number;
+}
+
+type DismissedChannels = Record<string, DismissalEntry>;
+
+type BannerVisibilityState = 'hidden' | 'visible' | 'exiting';
+
+// Banner storage shape (per-channel dismissals)
 interface BannerStorage {
-  visibleChannel?: string | null;
-  dismissedChannels?: Record<string, { dismissed: boolean; dismissTime: number }>;
+  dismissedChannels?: DismissedChannels;
 }
 
 // Storage key
@@ -15,17 +22,46 @@ const BANNER_STORAGE_KEY = 'banner-state';
 
 // Default suppress duration: 4 hours
 const SUPPRESS_DURATION_MS = 4 * 60 * 60 * 1000;
+const MAX_DISMISSED_CHANNELS = 500;
 
 let bannerElement: HTMLElement | null = null;
-let currentChannelKey: string | undefined;
+let bannerVisibilityState: BannerVisibilityState = 'hidden';
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function pruneDismissedChannels(dismissedChannels: DismissedChannels, now = Date.now()): DismissedChannels {
+  const validEntries: Array<[string, DismissalEntry]> = Object.entries(dismissedChannels)
+    .filter(([, entry]) => Number.isFinite(entry?.dismissedAt) && now - entry.dismissedAt <= SUPPRESS_DURATION_MS)
+    .sort((a, b) => b[1].dismissedAt - a[1].dismissedAt)
+    .slice(0, MAX_DISMISSED_CHANNELS);
+
+  return Object.fromEntries(validEntries);
+}
 
 async function getBannerStorage(): Promise<BannerStorage> {
   try {
     const result = await chrome.storage.local.get(BANNER_STORAGE_KEY);
-    const stored = result[BANNER_STORAGE_KEY] as BannerStorage | undefined;
-    // Option B: ignore legacy global dismissal shape and return fresh object if not present
-    if (!stored || typeof stored !== 'object') return {};
-    return stored;
+    const stored = result[BANNER_STORAGE_KEY] as unknown;
+    if (!isRecord(stored)) {
+      return {};
+    }
+
+    const dismissedChannels = isRecord(stored.dismissedChannels)
+      ? Object.fromEntries(
+          Object.entries(stored.dismissedChannels)
+            .filter(([, value]) => isRecord(value) && Number.isFinite(value.dismissedAt))
+            .map(([channelKey, value]) => {
+              const dismissedAt = Number((value as Record<string, unknown>).dismissedAt);
+              return [channelKey, { dismissedAt }];
+            })
+        )
+      : undefined;
+
+    return {
+      dismissedChannels,
+    };
   } catch (err) {
     console.warn('Failed to read banner storage (extension context may be invalidated):', err);
     return {};
@@ -45,27 +81,26 @@ async function isChannelDismissed(channelKey?: string): Promise<boolean> {
   const storage = await getBannerStorage();
   const entry = storage.dismissedChannels?.[channelKey];
   if (!entry) return false;
-  if (entry.dismissed && entry.dismissTime) {
-    if (Date.now() - entry.dismissTime > SUPPRESS_DURATION_MS) {
-      // expired - remove and persist
-      try {
-        delete (storage.dismissedChannels as Record<string, any>)[channelKey];
-        await saveBannerStorage(storage);
-      } catch (e) {
-        // ignore
-      }
-      return false;
-    }
-    return entry.dismissed === true;
+
+  const now = Date.now();
+  const pruned = pruneDismissedChannels(storage.dismissedChannels || {}, now);
+  const isSuppressed = Boolean(pruned[channelKey]);
+  const wasPruned = JSON.stringify(pruned) !== JSON.stringify(storage.dismissedChannels || {});
+
+  if (wasPruned) {
+    storage.dismissedChannels = pruned;
+    await saveBannerStorage(storage);
   }
-  return false;
+
+  return isSuppressed;
 }
 
 async function setChannelDismissed(channelKey?: string): Promise<void> {
   if (!channelKey) return;
   const storage = await getBannerStorage();
   storage.dismissedChannels = storage.dismissedChannels || {};
-  storage.dismissedChannels[channelKey] = { dismissed: true, dismissTime: Date.now() };
+  storage.dismissedChannels[channelKey] = { dismissedAt: Date.now() };
+  storage.dismissedChannels = pruneDismissedChannels(storage.dismissedChannels);
   await saveBannerStorage(storage);
 }
 
@@ -323,7 +358,7 @@ function createBannerElement(): HTMLElement {
     }
   `;
   
-  // Create HTML content
+  // Create static HTML content and inject text via textContent to avoid HTML injection.
   const bannerHTML = `
     <div class="banner" role="alert" aria-labelledby="pew-banner-title" aria-describedby="pew-banner-message">
       <div class="banner-content">
@@ -331,14 +366,14 @@ function createBannerElement(): HTMLElement {
           <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
         </svg>
         <div class="banner-text">
-          <p class="banner-title" id="pew-banner-title">${getMessage('banner_title')}</p>
+          <p class="banner-title" id="pew-banner-title"></p>
           <p class="banner-message" id="pew-banner-message"></p>
           <div class="banner-actions">
-            <button class="banner-button secondary" id="pew-more-info">${getMessage('more_info')}</button>
-            <button class="banner-button secondary" id="pew-dismiss">${getMessage('dismiss')}</button>
+            <button class="banner-button secondary" id="pew-more-info"></button>
+            <button class="banner-button secondary" id="pew-dismiss"></button>
           </div>
         </div>
-        <button class="banner-dismiss" id="pew-close" aria-label="${getMessage('close')}">
+        <button class="banner-dismiss" id="pew-close" aria-label="">
           <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor">
             <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
           </svg>
@@ -349,6 +384,23 @@ function createBannerElement(): HTMLElement {
   
   shadow.appendChild(style);
   shadow.innerHTML += bannerHTML;
+
+  const titleEl = shadow.getElementById('pew-banner-title');
+  if (titleEl) {
+    titleEl.textContent = getMessage('banner_title');
+  }
+  const moreInfoEl = shadow.getElementById('pew-more-info');
+  if (moreInfoEl) {
+    moreInfoEl.textContent = getMessage('more_info');
+  }
+  const dismissEl = shadow.getElementById('pew-dismiss');
+  if (dismissEl) {
+    dismissEl.textContent = getMessage('dismiss');
+  }
+  const closeEl = shadow.getElementById('pew-close');
+  if (closeEl) {
+    closeEl.setAttribute('aria-label', getMessage('close'));
+  }
   
   return container;
 }
@@ -366,13 +418,13 @@ export async function showWarningBanner(channelName: string, reason?: string, ch
 
   // Create and insert banner
   bannerElement = createBannerElement();
-  currentChannelKey = channelKey;
+  bannerVisibilityState = 'visible';
 
   // Set message with channel name
   const messageEl = bannerElement.shadowRoot?.querySelector('.banner-message');
   if (messageEl) {
     const reasonText = reason ? ` ${reason}` : '';
-    messageEl.textContent = `${getMessage('banner_message').replace('{channel}', channelName)}${reasonText}`;
+    messageEl.textContent = `${getMessage('banner_message', { channel: channelName })}${reasonText}`;
   }
 
   // Add event listeners
@@ -410,14 +462,6 @@ export async function showWarningBanner(channelName: string, reason?: string, ch
   // Insert into page
   document.body.appendChild(bannerElement);
 
-  // Optionally track visible channel in storage (non-critical)
-  try {
-    const s = await getBannerStorage();
-    s.visibleChannel = channelKey || channelName;
-    await saveBannerStorage(s);
-  } catch (err) {
-    // ignore storage errors
-  }
 }
 
 // Hide the warning banner
@@ -426,6 +470,7 @@ export async function hideWarningBanner(persist = false, channelKey?: string): P
     const banner = bannerElement;
     const shadowRoot = banner.shadowRoot;
     const innerBanner = shadowRoot?.querySelector('.banner') as HTMLElement;
+    bannerVisibilityState = 'exiting';
     
     // Apply exit animation if element exists
     if (innerBanner) {
@@ -436,7 +481,7 @@ export async function hideWarningBanner(persist = false, channelKey?: string): P
     
     try { banner.remove(); } catch { /* ignore */ }
     bannerElement = null;
-    currentChannelKey = undefined;
+    bannerVisibilityState = 'hidden';
   }
 
   if (persist && channelKey) {
@@ -450,7 +495,7 @@ export async function hideWarningBanner(persist = false, channelKey?: string): P
 
 // Check if banner is currently visible
 export function isBannerVisible(): boolean {
-  return bannerElement !== null;
+  return bannerElement !== null && bannerVisibilityState === 'visible';
 }
 
 // Clear banner state (for testing or reset)
@@ -469,13 +514,12 @@ export function removeInjectedBanner(): void {
       // ignore
     }
     bannerElement = null;
+    bannerVisibilityState = 'hidden';
   }
 }
 
-// Dev helpers (exposed for debugging in content script console)
-try {
-  (window as any).__APE_getBannerStorage = async () => await getBannerStorage();
-  (window as any).__APE_clearBannerForKey = async (key?: string) => await clearChannelDismissed(key);
-} catch (e) {
-  // ignore in non-window contexts
-}
+export const __testing = {
+  pruneDismissedChannels,
+  SUPPRESS_DURATION_MS,
+  MAX_DISMISSED_CHANNELS,
+};

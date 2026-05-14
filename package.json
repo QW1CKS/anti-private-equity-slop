@@ -17,11 +17,12 @@
     "@types/jest": "^29.5.12",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "esbuild": "^0.18.20",
     "eslint": "^8.57.0",
     "jest": "^29.7.0",
+    "jest-environment-jsdom": "^30.4.1",
     "ts-jest": "^29.1.2",
-    "typescript": "^5.4.0",
-    "esbuild": "^0.18.20"
+    "typescript": "^5.4.0"
   },
   "dependencies": {
     "zod": "^4.3.6"

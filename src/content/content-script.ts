@@ -19,27 +19,44 @@ import { STORAGE_KEYS } from '../shared/types.js';
 import type { ChannelCheckMessage } from '../shared/types.js';
 import { isValidSnapshot } from '../shared/blacklist-schema.js';
 
-declare global {
-  interface Window {
-    __APE_showWarningBanner?: (channelName: string, reason?: string, channelKey?: string) => Promise<void>;
-  }
-}
-
-// Expose a dev helper so you can invoke the banner from the content-script console
-try {
-  const w = window as unknown as Record<string, unknown>;
-  w['__APE_showWarningBanner'] = showWarningBanner as unknown;
-} catch (e) {
-  void e;
-}
 interface ChannelCheckResponse {
   isBlacklisted: boolean;
   channelName?: string;
   reason?: string;
 }
 
+let navigationObserverInitialized = false;
+let locationChangePatched = false;
+let extensionContextInvalidatedUntil = 0;
+
+const OWNER_ANCHOR_SELECTORS = [
+  '#meta-contents ytd-video-owner-renderer a[href^="/@"]',
+  '#meta-contents ytd-video-owner-renderer a[href*="/channel/"]',
+  'ytd-video-owner-renderer a[href^="/@"]',
+  'ytd-video-owner-renderer a[href*="/channel/"]',
+  'ytd-channel-name a[href^="/@"]',
+  'ytd-channel-name a[href*="/channel/"]',
+  'a.yt-simple-endpoint[href^="/@"]',
+  'a.yt-simple-endpoint[href*="/channel/"]',
+] as const;
+
+function findOwnerAnchor(): HTMLAnchorElement | null {
+  for (const selector of OWNER_ANCHOR_SELECTORS) {
+    const candidate = document.querySelector<HTMLAnchorElement>(selector);
+    if (candidate) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
 // Listen for URL changes (YouTube SPA navigation)
 function setupNavigationObserver(): void {
+  if (navigationObserverInitialized) {
+    return;
+  }
+  navigationObserverInitialized = true;
+
   let lastUrl = location.href;
   let lastHandledUrl = lastUrl;
   let navigationTimeout: number | null = null;
@@ -59,6 +76,10 @@ function setupNavigationObserver(): void {
 
   // Create a robust "locationchange" signal by wrapping History API methods
   (function ensureLocationChangeEvent() {
+    if (locationChangePatched) {
+      return;
+    }
+
     type PushStateFn = (data?: unknown, unused?: string, url?: string | URL | null) => void;
     const _push = history.pushState as unknown as PushStateFn;
     const _replace = history.replaceState as unknown as PushStateFn;
@@ -71,6 +92,7 @@ function setupNavigationObserver(): void {
       window.dispatchEvent(new Event('locationchange'));
     };
     window.addEventListener('popstate', () => window.dispatchEvent(new Event('locationchange')));
+    locationChangePatched = true;
   })();
 
   // Debounced handler for navigation changes
@@ -105,7 +127,7 @@ function setupNavigationObserver(): void {
       handleLocationChange();
     }
   });
-  observer.observe(document.body, { childList: true, subtree: true });
+  observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
 
   // Initial check after a short delay to let page settle
   setTimeout(onPageChange, 1500);
@@ -204,7 +226,7 @@ async function checkChannel(channelInfo: {
 }): Promise<void> {
   // If the extension context was recently invalidated (extension reloaded),
   // avoid hammering the chrome APIs and back off briefly.
-  if ((window as any).__APE_extensionContextInvalidatedUntil && Date.now() < (window as any).__APE_extensionContextInvalidatedUntil) {
+  if (Date.now() < extensionContextInvalidatedUntil) {
     console.warn('Skipping CHECK_CHANNEL because extension context recently invalidated');
     return;
   }
@@ -268,7 +290,7 @@ async function checkChannel(channelInfo: {
         const msg = (error && (error as any).message) || String(error);
         if (typeof msg === 'string' && msg.includes('Extension context invalidated')) {
           // Back off for 30s
-          (window as any).__APE_extensionContextInvalidatedUntil = Date.now() + 30_000;
+          extensionContextInvalidatedUntil = Date.now() + 30_000;
           console.warn('Extension context invalidated detected; backing off for 30s');
           break;
         }
@@ -424,11 +446,9 @@ function waitForOwnerAnchor(timeoutMs = 2000): Promise<boolean> {
     let lastText: string | null = null;
     let stableSince = 0;
 
-    const sel = '#meta-contents ytd-video-owner-renderer a[href^="/@"], #meta-contents ytd-video-owner-renderer a[href*="/channel/"], ytd-video-owner-renderer a[href^="/@"], ytd-video-owner-renderer a[href*="/channel/"]';
-
     const check = () => {
       try {
-        const el = document.querySelector<HTMLAnchorElement>(sel);
+        const el = findOwnerAnchor();
         if (el) {
           const href = el.getAttribute('href') || '';
           const text = (el.textContent || '').trim();
@@ -495,7 +515,7 @@ async function getCachedSnapshotFromStorage(): Promise<unknown | null> {
     try {
       const msg = (err && (err as any).message) || String(err);
       if (typeof msg === 'string' && msg.includes('Extension context invalidated')) {
-        (window as any).__APE_extensionContextInvalidatedUntil = Date.now() + 30_000;
+        extensionContextInvalidatedUntil = Date.now() + 30_000;
         console.warn('Extension context invalidated detected while reading storage; backing off for 30s');
       }
     } catch {}
