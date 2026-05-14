@@ -14,7 +14,7 @@
 | Phase 1 - Foundation | complete | 100% | n/a | Phase 1 exit criteria satisfied |
 | Phase 2 - Blacklist API and Sync | complete | 100% | n/a | Contract integrity, implementation quality, security review, critical thinking, and CI gate mapping complete |
 | Phase 3 - UI Development | complete | 100% | n/a | All 6 sections completed; exit criteria satisfied; UI non-modal, accessibility/security/resilience evidence-backed, no blockers |
-| Phase 4 - Testing & Polish | opening | 0% | Gem Orchestrator | Phase 3 complete; opening delivery plan |
+| Phase 4 - Testing & Polish | complete | 100% | n/a | Phase 4 exit criteria satisfied with build/test/lint, browser validation, security, and defect-closure evidence |
 | Phase 5 - Deployment | not_started | 0% | n/a | Waits for Phase 4 |
 
 ## Install and Curation Status
@@ -66,3 +66,5 @@
 - 2026-05-14: Phase 3 section `5) Critical Thinking Reviewer - UX and Logic Challenge` completed; time-based persistent dismissal was replaced by in-session dismissal semantics reset on `locationchange`, and state/browser-flow tests now verify warning reappearance after navigation before handoff to GitHub Actions Expert.
 - 2026-05-14: Phase 3 section `6) GitHub Actions Expert - UI CI Gate` completed; UI changes remain CI-gated with failing build/test/lint blocking PRs; future enhancement gaps documented.
 - 2026-05-14: Phase 3 completion review executed; exit criteria verified (UI non-modal with evidence, accessibility/security/resilience checks backed by test and review artifacts, no active blockers). All hook-driven gates passed (Tool Guardian, Secrets Scanner, Dependency License Checker, Session Logger). All test matrix requirements met (67 tests across 6 suites). Phase 3 closed and Phase 4 - Testing & Polish opened.
+- 2026-05-14: Phase 4 section 1 completed; quality checkpoints, pass/fail thresholds, triage priorities, blocker escalation, and evidence/owner assignments were defined and the handoff moved to Playwright Tester.
+- 2026-05-14: Phase 4 section 2 completed; browser-validation coverage passed twice for warning behavior, dismiss/close semantics, SPA route resets, and non-blacklisted content, and the handoff moved to TypeScript MCP Expert.

@@ -15,7 +15,7 @@ function normalizeChannelKey(channelKey?: string): string {
   return (channelKey || '').trim().toLowerCase();
 }
 
-async function isChannelDismissed(channelKey?: string): Promise<boolean> {
+function isChannelDismissed(channelKey?: string): boolean {
   const normalizedKey = normalizeChannelKey(channelKey);
   if (!normalizedKey) {
     return false;
@@ -24,7 +24,7 @@ async function isChannelDismissed(channelKey?: string): Promise<boolean> {
   return sessionDismissedChannels.has(normalizedKey);
 }
 
-async function setChannelDismissed(channelKey?: string): Promise<void> {
+function setChannelDismissed(channelKey?: string): void {
   const normalizedKey = normalizeChannelKey(channelKey);
   if (!normalizedKey) {
     return;
@@ -33,7 +33,7 @@ async function setChannelDismissed(channelKey?: string): Promise<void> {
   sessionDismissedChannels.add(normalizedKey);
 }
 
-async function clearChannelDismissed(channelKey?: string): Promise<void> {
+function clearChannelDismissed(channelKey?: string): void {
   const normalizedKey = normalizeChannelKey(channelKey);
   if (!channelKey) {
     sessionDismissedChannels.clear();
@@ -333,12 +333,15 @@ function createBannerElement(): HTMLElement {
 export async function showWarningBanner(channelName: string, reason?: string, channelKey?: string): Promise<void> {
   // If this channel was explicitly dismissed in this page session, do not show.
   if (await isChannelDismissed(channelKey)) {
-    console.log('Banner is suppressed for', channelKey, 'not showing');
     return;
   }
 
   // Remove existing banner DOM-only (do not persist dismissal)
-  try { await hideWarningBanner(false); } catch (e) { /* ignore */ }
+  try {
+    await hideWarningBanner(false);
+  } catch (error) {
+    console.warn('Failed to clear existing banner before showing a new one:', error);
+  }
 
   // Create and insert banner
   bannerElement = createBannerElement();
@@ -424,7 +427,7 @@ export function isBannerVisible(): boolean {
 
 // Clear banner state (for testing or reset)
 export async function clearBannerState(): Promise<void> {
-  await clearChannelDismissed();
+  clearChannelDismissed();
   try { await hideWarningBanner(false); } catch (e) { /* ignore */ }
 }
 
