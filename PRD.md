@@ -64,17 +64,27 @@
 - **Remote source boundary:** Service worker fetches snapshot only from `BLACKLIST_RAW_URL` (`src/shared/config.ts`) with ETag conditional requests (`src/background/blacklist-sync.ts`).
 - **Local cache boundary:** Snapshot, ETag, and sync timestamp are persisted only in `chrome.storage.local` under `STORAGE_KEYS.BLACKLIST`, `STORAGE_KEYS.ETAG`, and `STORAGE_KEYS.LAST_SYNC`.
 - **Matcher consumer boundary:** Matching logic (`src/shared/matcher.ts`) consumes `BlacklistSnapshot` only and does not perform network calls.
+- **Snapshot contract fields:** Remote snapshots must include `version`, `updatedAt`, `signature`, and `entries`. Each entry must include a non-empty `channelName`, `addedAt`, and at least one stable identifier (`channelId`, `handles`, or `customUrl`).
+- **ETag freshness contract:** A matching ETag permits reuse of the cached snapshot; a changed or missing ETag allows a background refresh, and a `304 Not Modified` response preserves the existing cached payload.
+- **Cache lifecycle contract:** Stale cache remains readable for matching while revalidation runs. A successful remote refresh updates `STORAGE_KEYS.BLACKLIST`, `STORAGE_KEYS.ETAG`, and `STORAGE_KEYS.LAST_SYNC` together.
 
 ### 5.2.2 Extension message boundaries
 - **Channel check request:** Content script sends `CHECK_CHANNEL` with `{ channelId?, channelName?, handle?, customUrl? }`.
 - **Sync triggers:** Background sync is triggered by `BLACKLIST_SYNC`, scheduled alarms (`blacklist-sync`, `blacklist-sync-initial`), and browser startup.
 - **Result flow:** Service worker returns check result payload (`isBlacklisted`, optional `channelName`/`reason`) and emits `BLACKLIST_UPDATED` to YouTube tabs after successful snapshot updates.
+- **Message boundary contract:** `CHECK_CHANNEL` is the only content-to-background lookup request in Phase 2. Background sync messages are write-oriented only and must not expose raw snapshot payloads back to content script consumers.
+- **Identifier precedence contract:** Matching prefers `channelId` first, then `handle`, then `customUrl`, then `channelName` for ambiguous inputs, with normalization applied before comparison.
 
 ### 5.2.3 Failure semantics
 - **Network failure:** Keep existing cached snapshot if available and continue non-blocking local matching behavior.
 - **Invalid snapshot:** Reject malformed remote payloads via runtime schema validation (`isValidSnapshot`) and fall back to bundled `blacklist.json` when possible.
 - **Stale cache:** Treat stale cache as readable for matching while background sync attempts revalidation.
 - **Service worker/message failure:** Content script retries `CHECK_CHANNEL`, then falls back to local storage / direct snapshot fetch path.
+- **Error taxonomy:**
+  - `network` for unreachable hosts, timeouts, or transport failures.
+  - `parse` for malformed JSON or body decoding failures.
+  - `validation` for schema violations, missing required snapshot fields, or malformed entries.
+  - `unavailable` for empty fallback paths or missing local snapshot state after a failed refresh.
 
 ### 5.2.4 In-scope and out-of-scope architecture constraints
 - **In-scope:** Local matching in extension runtime, read-only anonymous snapshot fetches, warning-only UX.

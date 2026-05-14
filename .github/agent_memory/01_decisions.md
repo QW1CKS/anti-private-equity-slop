@@ -96,3 +96,53 @@
 - **Rationale:** Removes ambiguous "done" states and ensures a concrete CI security baseline before the next agent.
 - **Impacts:** `.github/workflows/build.yml`, `.github/workflows/dependency-review.yml`, `.github/workflows/codeql.yml`, `.github/workflows/README.md`, `AGENTS/Phase 1 - Foundation/CHECKLIST.md`, `AGENTS/PROGRESS_DASHBOARD.md`, `AGENTS/ACTIVE_PHASE.md`
 - **Related:** [Action ledger](./03_actions.tsv)
+
+## Phase 2 Delivery Plan Decision (2026-05-13)
+- **ID:** DEC-20260513-004
+- **Status:** Accepted
+- **Date:** 2026-05-13
+- **Context:** Phase 2 needed explicit checkpoint sequencing and evidence thresholds before implementation begins.
+- **Decision:** Use a five-checkpoint Phase 2 flow: contract definition, implementation, hardening, verification, and handoff; enforce background-sync-before-content-consumer dependency ordering and require one primary owner plus one independent reviewer per checkpoint.
+- **Rationale:** Prevents mismatched sync/match work, keeps regression evidence localized, and makes handoff decisions auditable.
+- **Impacts:** `AGENTS/Phase 2 - Blacklist API and Sync/CHECKLIST.md`, `AGENTS/ACTIVE_PHASE.md`, `AGENTS/PROGRESS_DASHBOARD.md`
+- **Related:** [Action ledger](./03_actions.tsv)
+
+## Shared Type Source-of-Truth Decision (2026-05-13)
+- **ID:** DEC-20260513-005
+- **Status:** Accepted
+- **Date:** 2026-05-13
+- **Context:** Phase 2 implementation quality revealed duplicated blacklist snapshot and message shapes between shared and runtime-specific files.
+- **Decision:** Treat `src/shared/blacklist-schema.ts` as the canonical blacklist snapshot source-of-truth and `src/shared/types.ts` as the canonical message-contract module; runtime files should import and adapt these shared shapes instead of redefining them.
+- **Rationale:** Reduces contract drift, keeps validation aligned with storage and matcher logic, and makes future refactors easier to verify.
+- **Impacts:** `src/shared/types.ts`, `src/background/service-worker.ts`, `src/content/content-script.ts`, `AGENTS/Phase 2 - Blacklist API and Sync/CHECKLIST.md`
+- **Related:** [Action ledger](./03_actions.tsv)
+
+## Fallback Snapshot Validation Decision (2026-05-13)
+- **ID:** DEC-20260513-006
+- **Status:** Accepted
+- **Date:** 2026-05-13
+- **Context:** Phase 2 security review found the content-script fallback path was consuming raw packaged and remote snapshots without schema validation.
+- **Decision:** Require `src/content/content-script.ts` fallback readers to validate cached, packaged, and remote snapshots with `isValidSnapshot` before matching or caching.
+- **Rationale:** Keeps hostile or malformed fallback payloads out of the matcher path and matches the service-worker trust boundary.
+- **Impacts:** `src/content/content-script.ts`, `AGENTS/Phase 2 - Blacklist API and Sync/CHECKLIST.md`
+- **Related:** [Action ledger](./03_actions.tsv)
+
+## Phase 2 Assumption Challenge Decision (2026-05-13)
+- **ID:** DEC-20260513-007
+- **Status:** Accepted
+- **Date:** 2026-05-13
+- **Context:** Phase 2 needed a documented outcome for the critical-thinking review of identifier matching, retry/backoff, fallback safety, SPA edge cases, and content/background coupling.
+- **Decision:** Accept the Phase 2 assumption challenge findings as pass conditions because the shared contracts, schema validation, and tests reduce the identified risks to documented, non-blocking trade-offs.
+- **Rationale:** Keeps the phase moving while preserving the explicit guardrails needed for later hardening if edge cases surface in broader integration.
+- **Impacts:** `AGENTS/Phase 2 - Blacklist API and Sync/CHECKLIST.md`, `AGENTS/ACTIVE_PHASE.md`, `AGENTS/PROGRESS_DASHBOARD.md`
+- **Related:** [Action ledger](./03_actions.tsv)
+
+## Phase 2 CI Gate Mapping Decision (2026-05-13)
+- **ID:** DEC-20260513-008
+- **Status:** Accepted
+- **Date:** 2026-05-13
+- **Context:** Phase 2 completion needed a final mapping from the implemented CI workflow and validation signals back to the phase exit criteria.
+- **Decision:** Treat `.github/workflows/build.yml` plus the recorded build/test/lint evidence as the CI gate contract for Phase 2 completion, while preserving the existing lint backlog as a documented non-blocking repository baseline.
+- **Rationale:** Allows the phase to close with auditable CI evidence without conflating pre-existing legacy lint issues with Phase 2 regressions.
+- **Impacts:** `AGENTS/Phase 2 - Blacklist API and Sync/CHECKLIST.md`, `AGENTS/ACTIVE_PHASE.md`, `AGENTS/PROGRESS_DASHBOARD.md`, `.github/agent_memory/03_actions.tsv`
+- **Related:** [Action ledger](./03_actions.tsv)

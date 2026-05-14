@@ -5,6 +5,29 @@
 
 import { syncBlacklist, getBlacklist } from './blacklist-sync.js';
 import { isBlacklisted, invalidateCache } from '../shared/matcher.js';
+import type { Message, BlacklistSyncMessage, ChannelCheckMessage } from '../shared/types.js';
+
+type RuntimeMessageSender = {
+  id?: string;
+  url?: string;
+  tab?: {
+    id?: number;
+    url?: string;
+  };
+};
+
+type Tab = {
+  id?: number;
+  url?: string;
+};
+
+type InstalledDetails = {
+  reason?: string;
+};
+
+type Alarm = {
+  name?: string;
+};
 
 // Log on startup to help debugging service worker lifecycle
 console.log('APE service worker started');
@@ -23,32 +46,9 @@ console.log('APE service worker started');
   }
 })();
 
-// Types for message passing
-export interface Message {
-  type: string;
-  payload?: unknown;
-}
-
-export interface BlacklistSyncMessage extends Message {
-  type: 'BLACKLIST_SYNC';
-  payload?: {
-    force?: boolean;
-  };
-}
-
-export interface ChannelCheckMessage extends Message {
-  type: 'CHECK_CHANNEL';
-  payload: {
-    channelId?: string;
-    channelName?: string;
-    handle?: string;
-    customUrl?: string;
-  };
-}
-
 // Message handler
 chrome.runtime.onMessage.addListener(
-  (message: Message, sender: any, sendResponse: (response?: unknown) => void) => {
+  (message: Message, sender: RuntimeMessageSender, sendResponse: (response?: unknown) => void) => {
     // Keep the async message channel open and ensure any handler errors
     // are returned as a safe service-unavailable response instead of
     // letting an exception crash the service worker.
@@ -56,7 +56,7 @@ chrome.runtime.onMessage.addListener(
       .then((res) => sendResponse(res))
       .catch((err) => {
         console.error('Service worker message handler failed:', err);
-        sendResponse({ success: false, error: 'service-unavailable', details: (err && (err as any).message) || String(err) });
+        sendResponse({ success: false, error: 'service-unavailable', details: getErrorMessage(err) });
       });
     return true; // Keep channel open for async response
   }
@@ -80,7 +80,7 @@ async function handleMessage(message: Message): Promise<unknown> {
     }
   } catch (err) {
     console.error('Error in handleMessage:', err);
-    return { success: false, error: 'service-unavailable', details: (err && (err as any).message) || String(err) };
+    return { success: false, error: 'service-unavailable', details: getErrorMessage(err) };
   }
 }
 
@@ -100,7 +100,7 @@ async function handleSyncBlacklist(force = false): Promise<{
     invalidateCache();
     
     // Notify all content scripts about the update so they can refresh their local caches
-    chrome.tabs.query({}, (tabs: any[]) => {
+    chrome.tabs.query({}, (tabs: Tab[]) => {
       for (const tab of tabs) {
         if (tab.id && tab.url && (tab.url.includes('youtube.com'))) {
           chrome.tabs.sendMessage(tab.id, {
@@ -175,7 +175,7 @@ async function handleCheckChannel(message: ChannelCheckMessage): Promise<{
 }
 
 // Alarm handler for periodic sync
-chrome.alarms.onAlarm.addListener((alarm: any) => {
+chrome.alarms.onAlarm.addListener((alarm: Alarm) => {
   if (!alarm) return;
   if (alarm.name === 'blacklist-sync' || alarm.name === 'blacklist-sync-initial') {
     syncBlacklist();
@@ -186,7 +186,7 @@ chrome.alarms.onAlarm.addListener((alarm: any) => {
 });
 
 // Install event
-chrome.runtime.onInstalled.addListener((details: any) => {
+chrome.runtime.onInstalled.addListener((details: InstalledDetails) => {
   // Schedule periodic sync every 12 hours
   chrome.alarms.create('blacklist-sync', { periodInMinutes: 12 * 60 });
 
@@ -200,3 +200,7 @@ chrome.runtime.onInstalled.addListener((details: any) => {
 chrome.runtime.onStartup.addListener(() => {
   syncBlacklist();
 });
+
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}

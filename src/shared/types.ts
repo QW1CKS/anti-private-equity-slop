@@ -2,6 +2,8 @@
  * Shared Types - TypeScript types used across background and content scripts
  */
 
+import type { BlacklistSnapshot as SchemaBlacklistSnapshot, ChannelEntry } from './blacklist-schema.js';
+
 // Channel information
 export interface ChannelInfo {
   channelId?: string;
@@ -9,26 +11,25 @@ export interface ChannelInfo {
   videoId?: string;
 }
 
-// Blacklist entry
-export interface BlacklistEntry {
+export interface ChannelCheckPayload {
   channelId?: string;
-  channelName: string;
-  addedAt: string;
-  reason?: string;
+  channelName?: string;
+  handle?: string;
+  customUrl?: string;
 }
 
+// Blacklist entry
+export type BlacklistEntry = ChannelEntry;
+
 // Blacklist snapshot
-export interface BlacklistSnapshot {
-  version: string;
-  updatedAt: string;
-  signature: string;
-  entries: BlacklistEntry[];
-}
+export type BlacklistSnapshot = SchemaBlacklistSnapshot;
 
 // Message types
 export type MessageType = 
+  | 'PING'
   | 'CHECK_CHANNEL' 
   | 'BLACKLIST_SYNC' 
+  | 'OPEN_DETAILS_PAGE'
   | 'CHANNEL_RESULT' 
   | 'SYNC_RESULT';
 
@@ -39,7 +40,7 @@ export interface Message {
 
 export interface ChannelCheckMessage extends Message {
   type: 'CHECK_CHANNEL';
-  payload: ChannelInfo;
+  payload: ChannelCheckPayload;
 }
 
 export interface ChannelResultMessage extends Message {

@@ -16,6 +16,8 @@ import {
 import { showWarningBanner, removeInjectedBanner } from './warning-banner.js';
 import { BLACKLIST_RAW_URL } from '../shared/config.js';
 import { STORAGE_KEYS } from '../shared/types.js';
+import type { ChannelCheckMessage } from '../shared/types.js';
+import { isValidSnapshot } from '../shared/blacklist-schema.js';
 
 declare global {
   interface Window {
@@ -30,17 +32,6 @@ try {
 } catch (e) {
   void e;
 }
-// Types for message passing
-interface ChannelCheckMessage {
-  type: 'CHECK_CHANNEL';
-  payload: {
-    channelId?: string;
-    channelName?: string;
-    handle?: string;
-    customUrl?: string;
-  };
-}
-
 interface ChannelCheckResponse {
   isBlacklisted: boolean;
   channelName?: string;
@@ -221,7 +212,7 @@ async function checkChannel(channelInfo: {
   // First, try a local cached blacklist (fast path, avoids sending messages to the SW)
   try {
     const cached = await getCachedSnapshotFromStorage();
-    if (cached) {
+    if (cached && isValidSnapshot(cached)) {
       console.debug('APE debug: using cached blacklist from storage (fast path)');
       const cachedRes = checkSnapshotForMatch(cached, channelInfo);
       if (cachedRes?.isBlacklisted) {
@@ -343,13 +334,17 @@ async function tryFallbackCheck(channelInfo: {
 }): Promise<ChannelCheckResponse> {
   try {
     // Try packaged blacklist first (extension resource) to avoid network dependency
-    let snapshot: any = null;
+    let snapshot: unknown = null;
     try {
       const localUrl = chrome.runtime.getURL('blacklist.json');
       const localRes = await fetch(localUrl, { cache: 'no-store' });
       if (localRes.ok) snapshot = await localRes.json();
     } catch (e) {
       // ignore local fetch failures
+    }
+
+    if (!isValidSnapshot(snapshot)) {
+      snapshot = null;
     }
 
     // If no packaged snapshot, try remote raw URL
@@ -361,6 +356,11 @@ async function tryFallbackCheck(channelInfo: {
       const res = await fetch(BLACKLIST_RAW_URL, { cache: 'no-store' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       snapshot = await res.json();
+    }
+
+    if (!isValidSnapshot(snapshot)) {
+      console.warn('tryFallbackCheck rejected invalid remote snapshot');
+      return { isBlacklisted: false };
     }
 
     const entries = Array.isArray(snapshot?.entries) ? snapshot.entries : [];
@@ -476,20 +476,20 @@ if (document.readyState === 'loading') {
 
 // Read the cached blacklist snapshot directly from chrome.storage.local
 let lastBlacklistCheckVersion: string | null = null;
-let cachedSnapshotFromStorage: any | null = null;
+let cachedSnapshotFromStorage: unknown | null = null;
 
-async function getCachedSnapshotFromStorage(): Promise<any | null> {
+async function getCachedSnapshotFromStorage(): Promise<unknown | null> {
   try {
     const result = await chrome.storage.local.get(STORAGE_KEYS.BLACKLIST);
     const snapshot = result[STORAGE_KEYS.BLACKLIST] ?? null;
     
     // Cache the snapshot and its version to avoid repeated storage reads
-    if (snapshot && snapshot.version !== lastBlacklistCheckVersion) {
+    if (isValidSnapshot(snapshot) && snapshot.version !== lastBlacklistCheckVersion) {
       cachedSnapshotFromStorage = snapshot;
       lastBlacklistCheckVersion = snapshot.version;
     }
     
-    return cachedSnapshotFromStorage;
+    return isValidSnapshot(cachedSnapshotFromStorage) ? cachedSnapshotFromStorage : null;
   } catch (err) {
     console.warn('getCachedSnapshotFromStorage failed:', err);
     try {
@@ -504,8 +504,9 @@ async function getCachedSnapshotFromStorage(): Promise<any | null> {
 }
 
 // Check an in-memory snapshot for a match (same logic as tryFallbackCheck)
-function checkSnapshotForMatch(snapshot: any, channelInfo: { channelId?: string; channelName?: string; handle?: string; customUrl?: string; }): ChannelCheckResponse | null {
+function checkSnapshotForMatch(snapshot: unknown, channelInfo: { channelId?: string; channelName?: string; handle?: string; customUrl?: string; }): ChannelCheckResponse | null {
   try {
+    if (!isValidSnapshot(snapshot)) return null;
     const entries = Array.isArray(snapshot?.entries) ? snapshot.entries : [];
     console.debug('APE debug: checkSnapshotForMatch checking', entries.length, 'entries against', channelInfo);
     const normalize = (s: any) => {

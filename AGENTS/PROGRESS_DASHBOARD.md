@@ -11,8 +11,8 @@
 
 | Phase | Status | Completion | Current Owner | Notes |
 |---|---|---:|---|---|
-| Phase 1 - Foundation | in_progress | 95% | `.github/agents/gem-orchestrator.agent.md` | CI hardening implemented; section 8 + gates complete; handoff readiness next |
-| Phase 2 - Blacklist API and Sync | not_started | 0% | n/a | Waits for Phase 1 exit criteria |
+| Phase 1 - Foundation | complete | 100% | n/a | Phase 1 exit criteria satisfied |
+| Phase 2 - Blacklist API and Sync | complete | 100% | n/a | Contract integrity, implementation quality, security review, critical thinking, and CI gate mapping complete |
 | Phase 3 - UI Development | not_started | 0% | n/a | Waits for Phase 2 |
 | Phase 4 - Testing & Polish | not_started | 0% | n/a | Waits for Phase 3 |
 | Phase 5 - Deployment | not_started | 0% | n/a | Waits for Phase 4 |
@@ -33,9 +33,9 @@
 
 | Metric | Current | Target | Status |
 |---|---:|---:|---|
-| Decision Entries | 8 | n/a | ok |
+| Decision Entries | 11 | n/a | ok |
 | Learning Entries | 2 | n/a | ok |
-| Action Entries | 17 | append-only | ok |
+| Action Entries | 22 | append-only | ok |
 | Broken Memory Links | unknown | 0 | review pending |
 | Duplicate Entry IDs | unknown | 0 | review pending |
 
@@ -52,3 +52,10 @@
 - 2026-05-13: Phase 1 section `6) Security Reviewer - Foundation Threat Baseline` completed; added explicit local-matching, MV3 permission, secrets-handling, release-blocker, and security evidence-format contracts in `PRD.md` and handed off to GitHub Actions Expert.
 - 2026-05-13: Phase 1 section `7) GitHub Actions Expert - CI Baseline Hardening Plan` implemented; added dependency review and CodeQL workflows and pinned actions.
 - 2026-05-13: Phase 1 section `8) Critical Thinking Reviewer - Assumption Pressure Test` completed; hook/skill gates and exit criteria documented.
+- 2026-05-13: Phase 1 handoff completed; Phase 2 opened with gem-orchestrator delivery planning.
+- 2026-05-13: Phase 2 section `1) Gem Orchestrator - Delivery Plan` completed; checkpoint sequencing, evidence, and rollback strategy defined.
+- 2026-05-13: Phase 2 section `2) API Architect - Contract Integrity` completed; snapshot, cache, message, identifier, and error contracts codified in PRD.
+- 2026-05-13: Phase 2 section `3) TypeScript MCP Expert - Implementation Quality` completed; shared types consolidated and validation/normalization contracts aligned to source code.
+- 2026-05-13: Phase 2 section `4) Security Reviewer - Privacy and Threat Controls` completed; fallback snapshot validation added to content-script trust boundary.
+- 2026-05-13: Phase 2 section `5) Critical Thinking Reviewer - Assumption Challenge` completed; retry, fallback, SPA, and coupling assumptions documented.
+- 2026-05-13: Phase 2 section `6) GitHub Actions Expert - CI Gate Mapping` completed; build/test/lint gate evidence and CI hardening references captured.
